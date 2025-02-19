@@ -3,12 +3,14 @@ import { Agenda, Job } from 'agenda';
 import { User } from '../models/user.model.mjs';
 import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
 import { fetchBaseMemeCoins } from '../services/fetch-base-meme-coins.mjs';
+import { logger } from './logger.mjs';
 
 // Export a singleton agenda instance that will be configured by the server
 export let agenda: Agenda | null = null;
 
 // Function to create and configure a new agenda instance
-export function createAgenda(dbUri: string): Agenda {
+export function createAgenda(dbUri: string, debug = false): Agenda {
+  logger.setDebugMode(debug);
   agenda = new Agenda({
     db: {
       address: dbUri,
@@ -21,13 +23,13 @@ export function createAgenda(dbUri: string): Agenda {
   const JOB_NAME = 'check user purchases';
 
   agenda.define(JOB_NAME, async (job: Job) => {
-    console.log('\n--- Starting purchase check job ---');
+    logger.debug('\n--- Starting purchase check job ---');
     const users = await User.find();
-    console.log(`Found ${users.length} users to check`);
+    logger.debug(`Found ${users.length} users to check`);
 
     for (const user of users) {
-      console.log(`\nProcessing user: ${user.walletAddress}`);
-      console.log(`Purchase interval: ${user.purchaseIntervalSeconds}s`);
+      logger.debug(`\nProcessing user: ${user.walletAddress}`);
+      logger.debug(`Purchase interval: ${user.purchaseIntervalSeconds}s`);
 
       const lastPurchase = await PurchasedCoin.findOne({
         userId: user._id,
@@ -41,12 +43,12 @@ export function createAgenda(dbUri: string): Agenda {
       if (lastPurchase) {
         timeSinceLastPurchase =
           (now.getTime() - lastPurchase.purchasedAt.getTime()) / 1000;
-        console.log(
-          `Last purchase was ${timeSinceLastPurchase.toFixed(1)}s ago`
+        logger.debug(
+          `Last purchase was ${timeSinceLastPurchase.toFixed(3)}s ago`
         );
       } else {
         timeSinceLastPurchase = secondsSinceRegistration;
-        console.log('No previous purchases found');
+        logger.debug('No previous purchases found');
       }
 
       // Calculate how many intervals have passed since registration
@@ -54,28 +56,30 @@ export function createAgenda(dbUri: string): Agenda {
         secondsSinceRegistration / user.purchaseIntervalSeconds
       );
 
-      console.log(
-        `Time since registration: ${secondsSinceRegistration.toFixed(1)}s`
+      logger.debug(
+        `Time since registration: ${secondsSinceRegistration.toFixed(3)}s`
       );
-      console.log(`Intervals passed: ${intervalsPassed}`);
+      logger.debug(`Intervals passed: ${intervalsPassed}`);
 
       // We should purchase when:
-      // 1. At least one interval has passed
-      // 2. Either:
-      //    a. This is our first purchase (!lastPurchase), or
-      //    b. Enough time has passed since last purchase
-      const shouldPurchase =
-        intervalsPassed > 0 &&
-        (!lastPurchase ||
-          timeSinceLastPurchase >= user.purchaseIntervalSeconds);
+      // For first purchase: At least one interval has passed since registration
+      // For subsequent purchases: Enough time has passed since last purchase
+      const shouldPurchase = !lastPurchase
+        ? secondsSinceRegistration >= user.purchaseIntervalSeconds
+        : timeSinceLastPurchase >= user.purchaseIntervalSeconds;
 
-      console.log(`Should purchase? ${shouldPurchase}`);
+      logger.debug(
+        `Comparison: ${secondsSinceRegistration.toFixed(3)} >= ${
+          user.purchaseIntervalSeconds
+        }`
+      );
+      logger.debug(`Should purchase? ${shouldPurchase}`);
 
       if (shouldPurchase) {
         try {
-          console.log('Fetching top coin...');
+          logger.debug('Fetching top coin...');
           const topCoin = await fetchBaseMemeCoins();
-          console.log('Got top coin:', topCoin);
+          logger.debug('Got top coin:', topCoin);
 
           // Create a purchase record
           const purchase = new PurchasedCoin({
@@ -89,17 +93,17 @@ export function createAgenda(dbUri: string): Agenda {
           });
           await purchase.save();
 
-          console.log(
+          logger.debug(
             `Successfully created purchase record for ${topCoin.symbol}`
           );
         } catch (error) {
-          console.error('Purchase failed:', error);
+          logger.error('Purchase failed:', error);
         }
       } else {
-        console.log('Skipping purchase - not time yet');
+        logger.debug('Skipping purchase - not time yet');
       }
     }
-    console.log('\n--- Finished purchase check job ---\n');
+    logger.debug('\n--- Finished purchase check job ---\n');
   });
 
   return agenda;
@@ -111,22 +115,18 @@ export async function startScheduler() {
     throw new Error('Agenda not initialized. Call createAgenda first.');
   }
 
-  console.log('Starting scheduler...');
+  logger.debug('Starting scheduler...');
   await agenda.start();
 
   // Schedule the job to run every second
-  console.log('Scheduling job to run every second...');
+  logger.debug('Scheduling job to run every second...');
   await agenda.every('1 second', 'check user purchases');
-
-  // Also run it immediately
-  console.log('Running job immediately...');
-  await agenda.now('check user purchases', {});
 
   // List all jobs
   const jobs = await agenda.jobs({});
-  console.log(`Scheduled jobs: ${jobs.length}`);
+  logger.debug(`Scheduled jobs: ${jobs.length}`);
 
-  console.log('Scheduler started');
+  logger.debug('Scheduler started');
 }
 
 // Stop function to gracefully shutdown the scheduler
@@ -136,54 +136,78 @@ export async function stopScheduler() {
   }
 
   try {
-    // Cancel all jobs
-    await agenda.cancel({});
+    // Store agenda reference since we'll null it later
+    const agendaInstance = agenda;
 
-    // Wait for running jobs to complete with a timeout
-    const timeoutPromise = new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, 3000);
-      timer.unref(); // Allow the process to exit even if this timer is still running
-    });
+    // Cancel all scheduled jobs
+    try {
+      await agendaInstance.cancel({});
+    } catch (error) {
+      logger.error('Error canceling jobs:', error);
+    }
 
-    await Promise.race([
-      new Promise<void>((resolve) => {
-        if (!agenda) {
-          resolve();
-          return;
-        }
+    // Stop processing new jobs
+    try {
+      await agendaInstance.stop();
+    } catch (error) {
+      logger.error('Error stopping agenda:', error);
+    }
 
-        // Listen for both success and failure events
-        agenda.once('success', () => {
-          resolve();
-        });
-        agenda.once('fail', () => {
-          resolve();
-        });
+    // Get all jobs to ensure none are running
+    let jobs: any[] = [];
+    try {
+      jobs = await agendaInstance.jobs({});
+    } catch (error) {
+      logger.error('Error fetching jobs:', error);
+    }
 
-        // If no jobs are running, resolve immediately
-        agenda.jobs({}).then((jobs) => {
-          if (!jobs || jobs.length === 0) {
-            resolve();
-          }
-        });
-      }),
-      timeoutPromise,
-    ]);
+    // If there are running jobs, wait for them with a timeout
+    if (jobs.length > 0) {
+      const timeoutPromise = new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 3000);
+        timer.unref();
+      });
 
-    // Stop the scheduler
-    if (agenda) {
-      await agenda.stop();
+      await Promise.race([
+        Promise.allSettled(
+          jobs.map(
+            (job) =>
+              new Promise<void>((resolve) => {
+                if (job.attrs.lockedAt) {
+                  const onComplete = () => {
+                    agendaInstance.off(
+                      'complete:' + job.attrs.name,
+                      onComplete
+                    );
+                    agendaInstance.off('fail:' + job.attrs.name, onComplete);
+                    resolve();
+                  };
 
-      // Close MongoDB connection if it exists
-      const mongoClient = (agenda as any)._mdb?.client;
+                  agendaInstance.once('complete:' + job.attrs.name, onComplete);
+                  agendaInstance.once('fail:' + job.attrs.name, onComplete);
+                } else {
+                  resolve();
+                }
+              })
+          )
+        ),
+        timeoutPromise,
+      ]);
+    }
+
+    // Close MongoDB connection separately to ensure proper cleanup
+    try {
+      const mongoClient = (agendaInstance as any)._mdb?.client;
       if (mongoClient) {
         await mongoClient.close();
       }
+    } catch (error) {
+      logger.error('Error closing MongoDB connection:', error);
     }
   } catch (error) {
-    console.error('Error stopping scheduler:', error);
+    logger.error('Unexpected error stopping scheduler:', error);
   } finally {
-    // Clear the agenda instance to allow garbage collection
+    // Ensure agenda is cleared even if an error occurs
     agenda = null;
   }
 }

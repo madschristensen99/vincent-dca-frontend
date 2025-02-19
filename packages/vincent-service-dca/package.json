@@ -4,7 +4,7 @@
   "scripts": {
     "init-db": "node --loader ts-node/esm src/lib/db/init-db.mts",
     "start": "node --loader ts-node/esm src/lib/server.mts",
-    "test": "jest --detectOpenHandles --config jest.config.mjs"
+    "test": "jest --config jest.config.mjs"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.36.0",

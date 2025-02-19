@@ -13,6 +13,7 @@ export class TestServer extends Server {
       port,
       logger: false,
       dbUri: process.env.MONGODB_URI,
+      debug: true, // Enable debug mode for tests
     });
   }
 

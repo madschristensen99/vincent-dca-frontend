@@ -21,6 +21,9 @@ describe('Scheduler', () => {
     // Clear all timeouts
     timeouts.forEach(clearTimeout);
     timeouts = [];
+
+    // Add a small delay to ensure all operations complete
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }, 10000); // 10 second timeout for cleanup
 
   const wait = (ms: number) => {
@@ -75,7 +78,7 @@ describe('Scheduler', () => {
       );
       const user1Purchases = await user1PurchasesResponse.json();
       console.log('User 1 purchases:', user1Purchases);
-      expect(user1Purchases.length).toBeGreaterThan(0);
+      expect(user1Purchases.length).toBe(1);
 
       console.log('Checking user 2 purchases...');
       const user2PurchasesResponse = await fetch(
@@ -98,7 +101,7 @@ describe('Scheduler', () => {
       );
       const user1FinalPurchases = await user1FinalPurchasesResponse.json();
       console.log('User 1 final purchases:', user1FinalPurchases);
-      expect(user1FinalPurchases.length).toBeGreaterThan(1); // Should have multiple purchases
+      expect(user1FinalPurchases.length).toBe(3); // Should have 3 purchases (at ~3s, ~6s, ~9s)
 
       console.log('Checking final user 2 purchases...');
       const user2FinalPurchasesResponse = await fetch(
@@ -106,7 +109,10 @@ describe('Scheduler', () => {
       );
       const user2FinalPurchases = await user2FinalPurchasesResponse.json();
       console.log('User 2 final purchases:', user2FinalPurchases);
-      expect(user2FinalPurchases.length).toBeGreaterThan(0); // Should have at least one purchase
+      expect(user2FinalPurchases.length).toBe(1); // Should have 1 purchase (at ~8s)
+
+      // Add a final delay to ensure all operations complete
+      await wait(1000);
 
       console.log('--- Test completed ---\n');
     },

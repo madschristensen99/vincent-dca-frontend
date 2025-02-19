@@ -14,6 +14,7 @@ export interface ServerConfig {
   port?: number;
   logger?: boolean;
   dbUri?: string;
+  debug?: boolean;
 }
 
 export class Server {
@@ -29,12 +30,12 @@ export class Server {
     this.port = config.port ?? 3000;
     this.dbUri =
       config.dbUri ?? 'mongodb://localhost:27017/vincent-service-dca';
+
+    // Configure agenda
+    this.agendaInstance = createAgenda(this.dbUri, config.debug ?? false);
   }
 
   async start() {
-    // Configure agenda
-    this.agendaInstance = createAgenda(this.dbUri);
-
     // Wait for agenda to be ready and start the scheduler
     await startScheduler();
 

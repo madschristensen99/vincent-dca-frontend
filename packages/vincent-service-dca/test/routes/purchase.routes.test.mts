@@ -9,6 +9,14 @@ import { PurchasedCoin } from '../../src/lib/models/purchased-coin.model.mjs';
 describe('Purchase Routes', () => {
   let server: TestServer;
   let testUser: any;
+  let timeouts: NodeJS.Timeout[] = [];
+
+  const wait = (ms: number) => {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(resolve, ms);
+      timeouts.push(timeout);
+    });
+  };
 
   beforeEach(async () => {
     // Create and start test server
@@ -22,7 +30,8 @@ describe('Purchase Routes', () => {
     });
     testUser = await user.save();
 
-    // Create some test purchases
+    const now = new Date();
+    // Create some test purchases with relative timestamps
     const purchases = [
       {
         userId: testUser._id,
@@ -31,7 +40,7 @@ describe('Purchase Routes', () => {
         amount: 100,
         priceAtPurchase: 1.5,
         txHash: '0xTx1',
-        purchasedAt: new Date('2024-02-19T10:00:00Z'),
+        purchasedAt: new Date(now.getTime() - 7200000), // 2 hours ago
       },
       {
         userId: testUser._id,
@@ -40,16 +49,23 @@ describe('Purchase Routes', () => {
         amount: 200,
         priceAtPurchase: 2.5,
         txHash: '0xTx2',
-        purchasedAt: new Date('2024-02-19T11:00:00Z'),
+        purchasedAt: new Date(now.getTime() - 3600000), // 1 hour ago
       },
     ];
 
     await PurchasedCoin.insertMany(purchases);
-  }, 10000); // 10 second timeout for setup
+  }, 15000); // 15 second timeout for setup
 
   afterEach(async () => {
+    // Clear all timeouts
+    timeouts.forEach(clearTimeout);
+    timeouts = [];
+
     await server.stop();
-  }, 10000); // 10 second timeout for cleanup
+
+    // Add a small delay to ensure all operations complete
+    await wait(1000);
+  }, 15000); // 15 second timeout for cleanup
 
   describe('GET /purchases/:walletAddress', () => {
     it('should get all purchases for a wallet address', async () => {
