@@ -1,32 +1,28 @@
-import Fastify from 'fastify';
-import type { FastifyInstance } from 'fastify';
-import { userRoutes } from '../../src/lib/routes/user.routes.mjs';
-import { purchaseRoutes } from '../../src/lib/routes/purchase.routes.mjs';
+import { Server } from '../../src/lib/server.mjs';
 
-export class TestServer {
-  private server: FastifyInstance;
-  private port: number;
+export class TestServer extends Server {
+  constructor() {
+    // Generate random port between 3000 and 3100
+    const port = Math.floor(Math.random() * (3100 - 3000 + 1)) + 3000;
 
-  constructor(port = 3001) {
-    this.server = Fastify({ logger: false });
-    this.port = port;
+    super({
+      port,
+      logger: false,
+    });
   }
 
-  async start() {
-    // Register routes
-    await this.server.register(userRoutes);
-    await this.server.register(purchaseRoutes);
-
-    // Start server
-    await this.server.listen({ port: this.port });
-    console.log(`Test server running on port ${this.port}`);
-  }
-
-  async stop() {
-    await this.server.close();
-  }
-
-  get baseUrl() {
-    return `http://localhost:${this.port}`;
+  override async start() {
+    try {
+      await super.start();
+    } catch (err) {
+      // If port is in use, try another random port
+      if ((err as any).code === 'EADDRINUSE') {
+        const newPort = Math.floor(Math.random() * (3100 - 3000 + 1)) + 3000;
+        this.setPort(newPort);
+        await super.start();
+      } else {
+        throw err;
+      }
+    }
   }
 }

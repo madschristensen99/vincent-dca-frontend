@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fetch from 'node-fetch';
 import '../setup.mts';
 import { TestServer } from '../helpers/test-server.mjs';
 
 describe('User Routes', () => {
-  const server = new TestServer();
+  let server: TestServer;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
+    server = new TestServer();
     await server.start();
-  }, 30000);
+  });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await server.stop();
   });
 
@@ -23,14 +24,14 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet1',
-          purchaseIntervalMinutes: 60,
+          purchaseIntervalSeconds: 3600,
         }),
       });
 
       expect(response.status).toBe(201);
       const user = await response.json();
       expect(user.walletAddress).toBe('0xTestWallet1');
-      expect(user.purchaseIntervalMinutes).toBe(60);
+      expect(user.purchaseIntervalSeconds).toBe(3600);
     });
 
     it('should reject duplicate wallet addresses', async () => {
@@ -42,7 +43,7 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet2',
-          purchaseIntervalMinutes: 60,
+          purchaseIntervalSeconds: 3600,
         }),
       });
 
@@ -54,7 +55,7 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet2',
-          purchaseIntervalMinutes: 30,
+          purchaseIntervalSeconds: 1800,
         }),
       });
 
@@ -72,7 +73,7 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet3',
-          purchaseIntervalMinutes: 60,
+          purchaseIntervalSeconds: 3600,
         }),
       });
 
@@ -100,7 +101,7 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet4',
-          purchaseIntervalMinutes: 60,
+          purchaseIntervalSeconds: 3600,
         }),
       });
 
@@ -111,7 +112,7 @@ describe('User Routes', () => {
         },
         body: JSON.stringify({
           walletAddress: '0xTestWallet5',
-          purchaseIntervalMinutes: 30,
+          purchaseIntervalSeconds: 1800,
         }),
       });
 

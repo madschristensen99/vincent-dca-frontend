@@ -1,27 +1,31 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import { beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { beforeEach, afterEach } from '@jest/globals';
 
-let mongoServer: MongoMemoryServer;
-
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  await mongoose.connect(mongoUri);
-}, 60000);
-
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
-});
+let mongod: MongoMemoryServer;
 
 beforeEach(async () => {
-  // Clear all collections before each test
-  if (!mongoose.connection.db) {
-    throw new Error('Database not connected');
+  // Start MongoDB Memory Server
+  mongod = await MongoMemoryServer.create();
+  const uri = mongod.getUri();
+  process.env.MONGODB_URI = uri;
+
+  // Connect to the in-memory database
+  await mongoose.connect(uri);
+});
+
+afterEach(async () => {
+  // Clear all collections
+  if (mongoose.connection.db) {
+    const collections = await mongoose.connection.db.collections();
+    for (const collection of collections) {
+      await collection.deleteMany({});
+    }
   }
-  const collections = await mongoose.connection.db.collections();
-  for (const collection of collections) {
-    await collection.deleteMany({});
-  }
+
+  // Close mongoose connection
+  await mongoose.disconnect();
+
+  // Stop MongoDB Memory Server
+  await mongod.stop();
 });

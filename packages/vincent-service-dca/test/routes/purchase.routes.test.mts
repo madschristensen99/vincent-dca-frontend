@@ -1,34 +1,24 @@
-import Fastify from 'fastify';
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  beforeEach,
-  afterAll,
-} from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import fetch from 'node-fetch';
 
-import '../setup.mjs';
-import { purchaseRoutes } from '../../src/lib/routes/purchase.routes.mjs';
-import { userRoutes } from '../../src/lib/routes/user.routes.mjs';
+import '../setup.mts';
+import { TestServer } from '../helpers/test-server.mjs';
 import { User } from '../../src/lib/models/user.model.mjs';
 import { PurchasedCoin } from '../../src/lib/models/purchased-coin.model.mjs';
 
 describe('Purchase Routes', () => {
-  const fastify = Fastify();
+  let server: TestServer;
   let testUser: any;
 
-  beforeAll(async () => {
-    await fastify.register(purchaseRoutes);
-    await fastify.register(userRoutes);
-    await fastify.ready();
-  });
-
   beforeEach(async () => {
+    // Create and start test server
+    server = new TestServer();
+    await server.start();
+
     // Create a test user
     const user = new User({
       walletAddress: '0xTestWallet',
-      purchaseIntervalMinutes: 60,
+      purchaseIntervalSeconds: 3600, // 1 hour in seconds
     });
     testUser = await user.save();
 
@@ -57,20 +47,18 @@ describe('Purchase Routes', () => {
     await PurchasedCoin.insertMany(purchases);
   });
 
-  afterAll(async () => {
-    await fastify.close();
+  afterEach(async () => {
+    await server.stop();
   });
 
   describe('GET /purchases/:walletAddress', () => {
     it('should get all purchases for a wallet address', async () => {
-      const response = await fastify.inject({
-        method: 'GET',
-        url: `/purchases/${testUser.walletAddress}`,
-      });
+      const response = await fetch(
+        `${server.baseUrl}/purchases/${testUser.walletAddress}`
+      );
 
-      expect(response.statusCode).toBe(200);
-      const purchases = JSON.parse(response.payload);
-      console.log(purchases);
+      expect(response.status).toBe(200);
+      const purchases = await response.json();
       expect(Array.isArray(purchases)).toBe(true);
       expect(purchases.length).toBe(2);
       expect(purchases[0].symbol).toBe('MEME2'); // Most recent first
@@ -78,24 +66,20 @@ describe('Purchase Routes', () => {
     });
 
     it('should return 404 for non-existent wallet', async () => {
-      const response = await fastify.inject({
-        method: 'GET',
-        url: '/purchases/0xNonExistent',
-      });
+      const response = await fetch(`${server.baseUrl}/purchases/0xNonExistent`);
 
-      expect(response.statusCode).toBe(404);
+      expect(response.status).toBe(404);
     });
   });
 
   describe('GET /purchases/:walletAddress/latest', () => {
     it('should get latest purchase for a wallet address', async () => {
-      const response = await fastify.inject({
-        method: 'GET',
-        url: `/purchases/${testUser.walletAddress}/latest`,
-      });
+      const response = await fetch(
+        `${server.baseUrl}/purchases/${testUser.walletAddress}/latest`
+      );
 
-      expect(response.statusCode).toBe(200);
-      const purchase = JSON.parse(response.payload);
+      expect(response.status).toBe(200);
+      const purchase = await response.json();
       expect(purchase.symbol).toBe('MEME2');
       expect(purchase.amount).toBe(200);
     });
@@ -104,24 +88,22 @@ describe('Purchase Routes', () => {
       // Create a new user with no purchases
       const newUser = await new User({
         walletAddress: '0xEmptyWallet',
-        purchaseIntervalMinutes: 60,
+        purchaseIntervalSeconds: 3600,
       }).save();
 
-      const response = await fastify.inject({
-        method: 'GET',
-        url: `/purchases/${newUser.walletAddress}/latest`,
-      });
+      const response = await fetch(
+        `${server.baseUrl}/purchases/${newUser.walletAddress}/latest`
+      );
 
-      expect(response.statusCode).toBe(404);
+      expect(response.status).toBe(404);
     });
 
     it('should return 404 for non-existent wallet', async () => {
-      const response = await fastify.inject({
-        method: 'GET',
-        url: '/purchases/0xNonExistent/latest',
-      });
+      const response = await fetch(
+        `${server.baseUrl}/purchases/0xNonExistent/latest`
+      );
 
-      expect(response.statusCode).toBe(404);
+      expect(response.status).toBe(404);
     });
   });
 });

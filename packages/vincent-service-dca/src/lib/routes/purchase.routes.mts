@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { User } from '../models/user.model.mjs';
 import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
 
