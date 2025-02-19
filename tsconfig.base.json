@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "emitDecoratorMetadata": false,
+    "esModuleInterop": true,
+    "experimentalDecorators": false,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "pretty": true,
+    "removeComments": false,
+    "resolveJsonModule": false,
+    "skipDefaultLibCheck": false,
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "strict": true,
+    "target": "es2022",
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@lit-protocol/agent-wallet": ["./packages/agent-wallet/src"],
+      "@lit-protocol/aw-signer": ["./packages/aw-signer/src"],
+      "@lit-protocol/aw-tool": ["./packages/aw-tool/src"],
+      "@lit-protocol/aw-tool-erc20-transfer": [
+        "./packages/aw-tool-erc20-transfer/src"
+      ],
+      "@lit-protocol/aw-tool-registry": ["./packages/aw-tool-registry/src"],
+      "@lit-protocol/law-cli": ["./packages/law-cli/src"]
+    }
+  }
+}

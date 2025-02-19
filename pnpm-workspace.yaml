@@ -1,0 +1,11 @@
+packages:
+  - "packages/*"
+  - "!packages/vincent-contracts"
+
+catalog:
+  "@lit-protocol/lit-node-client-nodejs": 7.0.6
+  "@lit-protocol/constants": 7.0.6
+  "@lit-protocol/types": 7.0.6
+  "@lit-protocol/contracts-sdk": 7.0.6
+  "@lit-protocol/auth-helpers": 7.0.6
+  "ethers": 5.7.2
