@@ -1,3 +1,8 @@
+import { config } from '@dotenvx/dotenvx';
+
+// Load environment variables
+config();
+
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import { beforeEach, afterEach } from '@jest/globals';

@@ -4,11 +4,11 @@
   "scripts": {
     "init-db": "node --loader ts-node/esm src/lib/db/init-db.mts",
     "start": "node --loader ts-node/esm src/lib/server.mts",
-    "test": "jest --config jest.config.mjs"
+    "test": "jest --detectOpenHandles --config jest.config.mjs"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.36.0",
     "agenda": "^5.0.0",
-    "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "mongoose": "^8.10.1",
     "ts-node": "^10.9.2",

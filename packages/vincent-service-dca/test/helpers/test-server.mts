@@ -5,9 +5,14 @@ export class TestServer extends Server {
     // Generate random port between 3000 and 3100
     const port = Math.floor(Math.random() * (3100 - 3000 + 1)) + 3000;
 
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI not set');
+    }
+
     super({
       port,
       logger: false,
+      dbUri: process.env.MONGODB_URI,
     });
   }
 

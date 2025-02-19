@@ -1,45 +1,42 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import { Agenda } from 'agenda';
+import type { Agenda } from 'agenda';
 
 import { userRoutes } from './routes/user.routes.mjs';
 import { purchaseRoutes } from './routes/purchase.routes.mjs';
-import { agenda } from './scheduler/scheduler.mjs';
+import {
+  createAgenda,
+  startScheduler,
+  stopScheduler,
+} from './scheduler/scheduler.mjs';
 
 export interface ServerConfig {
   port?: number;
   logger?: boolean;
+  dbUri?: string;
 }
 
 export class Server {
   protected fastify: FastifyInstance;
   protected port: number;
+  protected dbUri: string;
+  protected agendaInstance: Agenda | null = null;
 
   constructor(config: ServerConfig = {}) {
     this.fastify = Fastify({
       logger: config.logger ?? true,
     });
     this.port = config.port ?? 3000;
+    this.dbUri =
+      config.dbUri ?? 'mongodb://localhost:27017/vincent-service-dca';
   }
 
   async start() {
-    // Configure agenda if dbUri is provided
-    if (process.env.MONGODB_URI) {
-      const agendaInstance = new Agenda({
-        db: {
-          address: process.env.MONGODB_URI,
-          collection: 'agendaJobs',
-        },
-        processEvery: '1 second',
-      });
+    // Configure agenda
+    this.agendaInstance = createAgenda(this.dbUri);
 
-      // Wait for agenda to be ready
-      await agendaInstance.start();
-      await agendaInstance.cancel({});
-
-      // Replace the global agenda instance
-      Object.assign(agenda, agendaInstance);
-    }
+    // Wait for agenda to be ready and start the scheduler
+    await startScheduler();
 
     // Register routes
     await this.fastify.register(userRoutes);
@@ -57,8 +54,7 @@ export class Server {
 
   async stop() {
     // Stop agenda if it's running
-    await agenda.cancel({});
-    await agenda.stop();
+    await stopScheduler();
 
     // Stop server
     await this.fastify.close();

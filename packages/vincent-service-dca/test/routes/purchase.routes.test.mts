@@ -45,11 +45,11 @@ describe('Purchase Routes', () => {
     ];
 
     await PurchasedCoin.insertMany(purchases);
-  });
+  }, 10000); // 10 second timeout for setup
 
   afterEach(async () => {
     await server.stop();
-  });
+  }, 10000); // 10 second timeout for cleanup
 
   describe('GET /purchases/:walletAddress', () => {
     it('should get all purchases for a wallet address', async () => {

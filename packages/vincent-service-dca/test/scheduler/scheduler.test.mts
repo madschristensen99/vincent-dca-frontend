@@ -1,12 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 
 import '../setup.mts';
 import { TestServer } from '../helpers/test-server.mjs';
-import { startScheduler } from '../../src/lib/scheduler/scheduler.mjs';
-
-dotenv.config();
 
 describe('Scheduler', () => {
   let server: TestServer;
@@ -16,7 +12,7 @@ describe('Scheduler', () => {
     // Create and start test server
     server = new TestServer();
     await server.start();
-  });
+  }, 10000); // 10 second timeout for setup
 
   afterEach(async () => {
     // Clean up after each test
@@ -25,7 +21,7 @@ describe('Scheduler', () => {
     // Clear all timeouts
     timeouts.forEach(clearTimeout);
     timeouts = [];
-  });
+  }, 10000); // 10 second timeout for cleanup
 
   const wait = (ms: number) => {
     return new Promise((resolve) => {
@@ -66,13 +62,12 @@ describe('Scheduler', () => {
       const user2Data = await user2Response.json();
       console.log('User 2 created:', user2Data);
 
-      // Start the scheduler
-      console.log('Starting scheduler...');
-      await startScheduler();
-
       // Wait 5 seconds - user1 should have a purchase, user2 should not
       console.log('Waiting 5 seconds for first check...');
       await wait(5 * 1000);
+
+      // Add a small delay to ensure all purchases are processed
+      await wait(1000);
 
       console.log('Checking user 1 purchases...');
       const user1PurchasesResponse = await fetch(
@@ -93,6 +88,9 @@ describe('Scheduler', () => {
       // Wait another 5 seconds - both users should have purchases
       console.log('Waiting another 5 seconds for second check...');
       await wait(5 * 1000);
+
+      // Add a small delay to ensure all purchases are processed
+      await wait(1000);
 
       console.log('Checking final user 1 purchases...');
       const user1FinalPurchasesResponse = await fetch(
