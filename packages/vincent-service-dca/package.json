@@ -1,0 +1,43 @@
+{
+  "name": "@lit-protocol/vincent-service-dca",
+  "version": "0.0.1",
+  "scripts": {
+    "init-db": "node --loader ts-node/esm src/lib/db/init-db.mts",
+    "start": "node --loader ts-node/esm src/lib/server.mts",
+    "test": "jest --config jest.config.mjs"
+  },
+  "dependencies": {
+    "agenda": "^5.0.0",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "mongoose": "^8.10.1",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.26.3",
+    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-typescript": "^7.23.3",
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^18.16.9",
+    "@types/node-fetch": "^2.6.11",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.1.6",
+    "node-fetch": "2"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "nx": {
+    "sourceRoot": "packages/vincent-service-dca/src",
+    "projectType": "library",
+    "name": "vincent-service-dca"
+  }
+}
