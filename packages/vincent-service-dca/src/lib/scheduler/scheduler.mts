@@ -2,8 +2,8 @@ import { Agenda, Job } from 'agenda';
 
 import { User } from '../models/user.model.mjs';
 import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
-import { fetchBaseMemeCoins } from '../services/fetch-base-meme-coins.mjs';
-import { logger } from './logger.mjs';
+import { logger } from '../logger.mjs';
+import { executeSwap } from '../services/execute-swap.mjs';
 
 // Export a singleton agenda instance that will be configured by the server
 export let agenda: Agenda | null = null;
@@ -69,33 +69,29 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
         : timeSinceLastPurchase >= user.purchaseIntervalSeconds;
 
       logger.debug(
-        `Comparison: ${secondsSinceRegistration.toFixed(3)} >= ${
-          user.purchaseIntervalSeconds
-        }`
+        `Comparison: ${
+          !lastPurchase ? 'First purchase' : 'Subsequent purchase'
+        } - ${
+          !lastPurchase
+            ? secondsSinceRegistration.toFixed(3)
+            : timeSinceLastPurchase.toFixed(3)
+        }s elapsed >= ${user.purchaseIntervalSeconds}s interval`
       );
       logger.debug(`Should purchase? ${shouldPurchase}`);
 
       if (shouldPurchase) {
         try {
-          logger.debug('Fetching top coin...');
-          const topCoin = await fetchBaseMemeCoins();
-          logger.debug('Got top coin:', topCoin);
-
-          // Create a purchase record
-          const purchase = new PurchasedCoin({
+          const purchase = await executeSwap({
             userId: user._id,
-            coinAddress: topCoin.coinAddress,
-            symbol: topCoin.symbol,
-            amount: 100, // Mock amount for testing
-            priceAtPurchase: parseFloat(topCoin.price),
-            txHash: `0x${Math.random().toString(16).slice(2)}`, // Mock transaction hash
             purchasedAt: now,
           });
-          await purchase.save();
 
-          logger.debug(
-            `Successfully created purchase record for ${topCoin.symbol}`
-          );
+          if (!purchase) {
+            logger.error(
+              'Failed to execute swap for user:',
+              user.walletAddress
+            );
+          }
         } catch (error) {
           logger.error('Purchase failed:', error);
         }

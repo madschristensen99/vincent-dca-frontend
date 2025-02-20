@@ -1,31 +1,39 @@
-import type { Model } from 'mongoose';
-import { User } from '../models/user.model.mjs';
+import { Types } from 'mongoose';
+
 import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
-import type { Coin } from './fetch-base-meme-coins.mjs';
+import { fetchTopBaseMemeCoins } from './fetch-base-meme-coins.mjs';
+import { logger } from '../logger.mjs';
 
-export async function executeSwap(user: InstanceType<typeof User>, coin: Coin) {
-  // TODO: Implement the actual swap logic
-  // This will involve:
-  // 1. Connecting to the user's wallet
-  // 2. Creating and signing the swap transaction
-  // 3. Broadcasting the transaction
-  // 4. Waiting for confirmation
+interface ExecuteSwapParams {
+  userId: Types.ObjectId;
+  purchasedAt: Date;
+}
 
-  // For now, just log the attempt
-  console.log(
-    `Would execute swap for ${user.walletAddress} to buy ${coin.symbol}`
-  );
+export async function executeSwap({
+  userId,
+  purchasedAt,
+}: ExecuteSwapParams): Promise<InstanceType<typeof PurchasedCoin> | null> {
+  try {
+    logger.debug('Fetching top coin...');
+    const topCoin = await fetchTopBaseMemeCoins();
+    logger.debug('Got top coin:', topCoin);
 
-  // Create a record of the purchase
-  const purchase = new PurchasedCoin({
-    userId: user._id,
-    coinAddress: coin.coinAddress,
-    symbol: coin.symbol,
-    amount: 0, // TODO: Add actual amount
-    priceAtPurchase: parseFloat(coin.price),
-    txHash: '0x0', // TODO: Add actual transaction hash
-  });
+    // Create a purchase record
+    const purchase = new PurchasedCoin({
+      userId,
+      coinAddress: topCoin.coinAddress,
+      symbol: topCoin.symbol,
+      amount: 100, // Mock amount for testing
+      priceAtPurchase: parseFloat(topCoin.price),
+      txHash: `0x${Math.random().toString(16).slice(2)}`, // Mock transaction hash
+      purchasedAt,
+    });
+    await purchase.save();
 
-  await purchase.save();
-  return purchase;
+    logger.debug(`Successfully created purchase record for ${topCoin.symbol}`);
+    return purchase;
+  } catch (error) {
+    logger.error('Purchase failed:', error);
+    return null;
+  }
 }

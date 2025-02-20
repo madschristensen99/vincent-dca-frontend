@@ -7,7 +7,7 @@ export interface Coin {
   coinAddress: string;
 }
 
-export async function fetchBaseMemeCoins(): Promise<Coin> {
+export async function fetchBaseMemeCoins(): Promise<Coin[]> {
   const COINRANKING_API_KEY = process.env.COINRANKING_API_KEY;
 
   if (!COINRANKING_API_KEY) {
@@ -45,23 +45,41 @@ export async function fetchBaseMemeCoins(): Promise<Coin> {
       throw new Error('API returned unsuccessful status');
     }
 
-    const topCoin = data.coins[0];
-    const baseAddress = topCoin.contractAddresses.find((addr) =>
-      addr.toLowerCase().startsWith('base/')
-    );
+    return data.coins.map((coin) => {
+      const baseAddress = coin.contractAddresses.find((addr) =>
+        addr.toLowerCase().startsWith('base/')
+      );
 
-    if (!baseAddress) {
-      throw new Error('No Base network address found for top coin');
-    }
+      if (!baseAddress) {
+        throw new Error(
+          `No Base network address found for coin ${coin.symbol}`
+        );
+      }
 
-    return {
-      symbol: topCoin.symbol,
-      name: topCoin.name,
-      price: topCoin.price,
-      coinAddress: baseAddress.replace('base/', ''),
-    };
+      return {
+        symbol: coin.symbol,
+        name: coin.name,
+        price: coin.price,
+        coinAddress: baseAddress.replace('base/', ''),
+      };
+    });
   } catch (error) {
     console.error('Failed to fetch meme coins:', error);
     throw new Error('Failed to fetch meme coins');
+  }
+}
+
+export async function fetchTopBaseMemeCoins(): Promise<Coin> {
+  try {
+    const coins = await fetchBaseMemeCoins();
+
+    if (coins.length === 0) {
+      throw new Error('No meme coins found on Base network');
+    }
+
+    return coins[0];
+  } catch (error) {
+    console.error('Failed to fetch top meme coin:', error);
+    throw new Error('Failed to fetch top meme coin');
   }
 }
