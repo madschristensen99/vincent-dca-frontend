@@ -3,7 +3,7 @@ import { Agenda, Job } from 'agenda';
 import { User } from '../models/user.model.mjs';
 import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
 import { logger } from '../logger.mjs';
-import { executeSwap } from '../services/execute-swap.mjs';
+import { executeSwap } from '../services/execute-swap/execute-swap.mjs';
 
 // Export a singleton agenda instance that will be configured by the server
 export let agenda: Agenda | null = null;

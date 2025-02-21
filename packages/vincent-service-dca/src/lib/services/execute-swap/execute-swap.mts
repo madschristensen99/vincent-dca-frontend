@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
 
-import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
-import { fetchTopBaseMemeCoins } from './fetch-base-meme-coins.mjs';
-import { logger } from '../logger.mjs';
+import { PurchasedCoin } from '../../models/purchased-coin.model.mjs';
+import { fetchTopBaseMemeCoins } from '../fetch-base-meme-coins.mjs';
+import { logger } from '../../logger.mjs';
 
 interface ExecuteSwapParams {
   userId: Types.ObjectId;

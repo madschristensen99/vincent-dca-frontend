@@ -132,6 +132,9 @@ importers:
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0
+      '@types/commander':
+        specifier: ^2.12.5
+        version: 2.12.5
       '@types/jest':
         specifier: ^29.5.12
         version: 29.5.14
@@ -144,6 +147,9 @@ importers:
       babel-jest:
         specifier: ^29.7.0
         version: 29.7.0(@babel/core@7.26.9)
+      commander:
+        specifier: ^13.1.0
+        version: 13.1.0
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@18.16.9)(ts-node@10.9.2(@swc/core@1.5.29(@swc/helpers@0.5.15))(@types/node@18.16.9)(typescript@5.7.2))
@@ -1542,6 +1548,10 @@ packages:
   '@types/babel__traverse@7.20.6':
     resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
 
+  '@types/commander@2.12.5':
+    resolution: {integrity: sha512-YXGZ/rz+s57VbzcvEV9fUoXeJlBt5HaKu5iUheiIWNsJs23bz6AnRuRiZBRVBLYyPnixNvVnuzM5pSaxr8Yp/g==}
+    deprecated: This is a stub types definition. commander provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
@@ -2125,6 +2135,10 @@ packages:
   commander@11.1.0:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
+
+  commander@13.1.0:
+    resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
+    engines: {node: '>=18'}
 
   commondir@1.0.1:
     resolution: {integrity: sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg==}
@@ -6794,6 +6808,10 @@ snapshots:
     dependencies:
       '@babel/types': 7.26.9
 
+  '@types/commander@2.12.5':
+    dependencies:
+      commander: 13.1.0
+
   '@types/estree@1.0.6': {}
 
   '@types/graceful-fs@4.1.9':
@@ -7537,6 +7555,8 @@ snapshots:
       delayed-stream: 1.0.0
 
   commander@11.1.0: {}
+
+  commander@13.1.0: {}
 
   commondir@1.0.1: {}
 
