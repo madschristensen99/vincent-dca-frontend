@@ -10,6 +10,7 @@ import {
   startScheduler,
   stopScheduler,
 } from './scheduler/scheduler';
+import mongoose from 'mongoose';
 
 export interface ServerConfig {
   port?: number;
@@ -72,6 +73,10 @@ export class Server {
     // Register routes
     await this.fastify.register(userRoutes);
     await this.fastify.register(purchaseRoutes);
+
+    await mongoose.connect(this.dbUri).then(() => {
+      this.fastify.log.info('Mongoose connected to MongoDB');
+    });
 
     // Start server
     try {

@@ -123,7 +123,7 @@ export async function startScheduler() {
 
   // Schedule the job to run every second
   logger.debug('Scheduling job to run every second...');
-  await agenda.every('1 second', 'process dca schedules');
+  await agenda.every('3 seconds', 'process dca schedules');
 
   // List all jobs
   const jobs = await agenda.jobs({});
