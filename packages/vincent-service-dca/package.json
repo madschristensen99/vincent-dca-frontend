@@ -6,7 +6,7 @@
     "dev": "node --loader ts-node/esm src/lib/server.ts",
     "start": "node ./dist/server.cjs",
     "test": "jest --config jest.config.mjs",
-    "test:e2e": "jest --config jest.config.mjs test/e2e/dca-flow.test.mts",
+    "test:e2e": "jest --config jest.config.mjs test/e2e/dca-flow.test.ts",
     "build": "node esbuild.js"
   },
   "dependencies": {
