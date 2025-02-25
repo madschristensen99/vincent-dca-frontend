@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fetch from 'node-fetch';
+import { ethers } from 'ethers';
 
 import '../setup.mts';
 import { TestServer } from '../helpers/test-server.mjs';
@@ -39,13 +40,13 @@ describe('Scheduler', () => {
       console.log('\n--- Starting scheduler test ---');
 
       // Create two test users with different intervals
-      console.log('Creating test user 1...');
       const user1Response = await fetch(`${server.baseUrl}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress: '0xE42534Ce546f54234d9DA51F6CA3c2eD1D682990',
-          purchaseIntervalSeconds: 3, // 3 seconds interval
+          purchaseIntervalSeconds: 3,
+          purchaseAmount: '0.0005',
         }),
       });
       expect(user1Response.status).toBe(201);

@@ -1,5 +1,6 @@
-import { FastifyInstance } from 'fastify';
+import { type FastifyInstance } from 'fastify';
 import { User } from '../models/user.model.mjs';
+import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
 
 export async function userRoutes(fastify: FastifyInstance) {
   // Get all users
@@ -25,6 +26,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     const userData = request.body as {
       walletAddress: string;
       purchaseIntervalMinutes: number;
+      purchaseAmount: string;
     };
 
     try {
@@ -34,5 +36,23 @@ export async function userRoutes(fastify: FastifyInstance) {
     } catch (error) {
       reply.code(400).send({ error: 'Invalid user data' });
     }
+  });
+
+  // Deactivate user
+  fastify.patch('/users/:walletAddress/deactivate', async (request, reply) => {
+    const { walletAddress } = request.params as { walletAddress: string };
+
+    const result = await User.findOneAndUpdate(
+      { walletAddress },
+      { active: false },
+      { new: true }
+    );
+
+    if (!result) {
+      reply.code(404).send({ error: 'User not found' });
+      return;
+    }
+
+    reply.code(200).send({ message: 'User successfully deactivated' });
   });
 }

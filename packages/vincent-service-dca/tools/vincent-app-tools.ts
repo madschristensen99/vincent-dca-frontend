@@ -2,8 +2,13 @@ import { config } from '@dotenvx/dotenvx';
 
 config();
 
-import { LIT_RPC } from '@lit-protocol/constants';
+import {
+  AUTH_METHOD_SCOPE,
+  LIT_NETWORK,
+  LIT_RPC,
+} from '@lit-protocol/constants';
 import { ethers } from 'ethers';
+import { LitContracts } from '@lit-protocol/contracts-sdk';
 
 import {
   VINCENT_AGENT_REGISTRY_ABI,
@@ -119,7 +124,26 @@ async function addRole() {
   console.log('addRole receipt:', JSON.stringify(receipt, null, 2));
 }
 
+async function permitLitActionAsAuthMethod() {
+  const litContractClient = new LitContracts({
+    signer: ethersSignerUser,
+    network: LIT_NETWORK.Datil,
+  });
+  await litContractClient.connect();
+
+  const receipt = await litContractClient.addPermittedAction({
+    ipfsId: VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID as string,
+    pkpTokenId: VINCENT_USER_PKP_TOKEN_ID as string,
+    authMethodScopes: [AUTH_METHOD_SCOPE.SignAnything],
+  });
+  console.log(
+    'permitLitActionAsAuthMethod receipt:',
+    JSON.stringify(receipt, null, 2)
+  );
+}
+
 (async () => {
   // await addDelegatee();
-  await addRole();
+  // await addRole();
+  await permitLitActionAsAuthMethod();
 })();

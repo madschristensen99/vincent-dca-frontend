@@ -24,8 +24,8 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
 
   agenda.define(JOB_NAME, async (job: Job) => {
     logger.debug('\n--- Starting purchase check job ---');
-    const users = await User.find();
-    logger.debug(`Found ${users.length} users to check`);
+    const users = await User.find({ active: true });
+    logger.debug(`Found ${users.length} active users to check`);
 
     for (const user of users) {
       logger.debug(`\nProcessing user: ${user.walletAddress}`);
@@ -84,6 +84,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
           const purchase = await executeSwap({
             userId: user._id,
             userWalletAddress: user.walletAddress,
+            purchaseAmount: user.purchaseAmount,
             purchasedAt: now,
           });
 

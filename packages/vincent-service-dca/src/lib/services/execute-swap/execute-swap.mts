@@ -24,28 +24,31 @@ import {
 interface ExecuteSwapParams {
   userId: Types.ObjectId;
   userWalletAddress: string;
+  purchaseAmount: string;
   purchasedAt: Date;
 }
 
-const VINCENT_DELEGATEE_PRIVATE_KEY = process.env.VINCENT_DELEGATEE_PRIVATE_KEY;
-const VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID =
-  process.env.VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID;
+const getEnv = (envName: string) => {
+  const env = process.env[envName];
+  if (env === '' || env === undefined) {
+    throw new Error(`${envName} is not set in .env`);
+  }
 
-if (VINCENT_DELEGATEE_PRIVATE_KEY === '' || !VINCENT_DELEGATEE_PRIVATE_KEY) {
-  throw new Error('VINCENT_DELEGATEE_PRIVATE_KEY is not set');
-}
-if (
-  VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID === '' ||
-  !VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID
-) {
-  throw new Error('VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID is not set');
-}
+  return env;
+};
+
+const VINCENT_DELEGATEE_PRIVATE_KEY = getEnv('VINCENT_DELEGATEE_PRIVATE_KEY');
+const VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID = getEnv(
+  'VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID'
+);
+const BASE_RPC_URL = getEnv('BASE_RPC_URL');
 
 let CAPACITY_CREDIT_INFO: CapacityCreditInfo | null = null;
 
 export async function executeSwap({
   userId,
   userWalletAddress,
+  purchaseAmount,
   purchasedAt,
 }: ExecuteSwapParams): Promise<InstanceType<typeof PurchasedCoin> | null> {
   try {
@@ -75,7 +78,7 @@ export async function executeSwap({
     }
 
     const litNodeClient = new LitNodeClient({
-      litNetwork: LIT_NETWORK.DatilDev,
+      litNetwork: LIT_NETWORK.Datil,
       debug: false,
     });
     await litNodeClient.connect();
@@ -123,8 +126,13 @@ export async function executeSwap({
       sessionSigs,
       ipfsId: VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID,
       jsParams: {
-        jsParams: {
+        litActionParams: {
           pkpEthAddress: userWalletAddress,
+          rpcUrl: BASE_RPC_URL,
+          chainId: '8453',
+          tokenIn: '0x4200000000000000000000000000000000000006', // Wrapped ETH
+          tokenOut: topCoin.coinAddress,
+          amountIn: purchaseAmount,
         },
       },
     });
@@ -136,7 +144,7 @@ export async function executeSwap({
       userId,
       coinAddress: topCoin.coinAddress,
       symbol: topCoin.symbol,
-      amount: 100, // Mock amount for testing
+      amount: purchaseAmount,
       priceAtPurchase: parseFloat(topCoin.price),
       txHash: `0x${Math.random().toString(16).slice(2)}`, // Mock transaction hash
       purchasedAt,
