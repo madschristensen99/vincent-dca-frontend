@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Agenda } from 'agenda';
 import cors from '@fastify/cors';
 
-import { userRoutes } from './routes/user.routes';
+import { scheduleRoutes } from './routes/schedule.routes';
 import { purchaseRoutes } from './routes/purchase.routes';
 import {
   createAgenda,
@@ -70,7 +70,7 @@ export class Server {
     await this.fastify.register(cors, corsOptions);
 
     // Register routes
-    await this.fastify.register(userRoutes);
+    await this.fastify.register(scheduleRoutes);
     await this.fastify.register(purchaseRoutes);
 
     // Start server

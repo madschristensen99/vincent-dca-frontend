@@ -4,8 +4,10 @@ import mongoose from 'mongoose';
 
 import '../setup';
 import { TestServer } from '../helpers/test-server';
+import { Schedule } from '../../src/lib/models/schedule.model';
 import { PurchasedCoin } from '../../src/lib/models/purchased-coin.model';
-import { User } from '../../src/lib/models/user.model';
+
+const log = (...args: any[]) => console.log(...args);
 
 describe('DCA Flow', () => {
   let server: TestServer;
@@ -22,21 +24,21 @@ describe('DCA Flow', () => {
   }, 10000); // 10 second timeout for setup
 
   afterEach(async () => {
-    // Stop server first to prevent new operations
-    await server.stop();
-
-    // Clear all timeouts
+    // Clear all timeouts first
     timeouts.forEach(clearTimeout);
     timeouts = [];
 
-    // Clean up database while connection is still open
-    await User.deleteMany({});
-    await PurchasedCoin.deleteMany({});
-
-    // Add a small delay to ensure all DB operations complete
+    // Add a delay to ensure all operations complete
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Close MongoDB connection last
+    // Clean up database while connection is still open
+    await Schedule.deleteMany({});
+    await PurchasedCoin.deleteMany({});
+
+    // Stop server
+    await server.stop();
+
+    // Finally close MongoDB connection
     if (mongoConnection) {
       await mongoConnection.disconnect();
     }
@@ -50,47 +52,29 @@ describe('DCA Flow', () => {
   };
 
   // Helper function to retry fetching transactions until they appear
-  const waitForTransactions = async (
-    walletAddress: string,
-    retries = 30,
-    interval = 2000
-  ) => {
-    for (let i = 0; i < retries; i++) {
-      console.log(`Checking for transactions (attempt ${i + 1}/${retries})...`);
+  const waitForTransactions = async (walletAddress: string) => {
+    const maxAttempts = 30;
+    const delayMs = 1000;
 
-      // Check MongoDB directly first
-      const user = await User.findOne({
-        walletAddress: walletAddress.toLowerCase(),
-      });
-      if (user) {
-        const dbTransactions = await PurchasedCoin.find({
-          userId: user._id,
-        }).sort({ purchasedAt: -1 });
-        if (dbTransactions.length > 0) {
-          console.log('Found transactions in database');
-          return dbTransactions;
-        }
-      }
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      log(`Checking for transactions (attempt ${attempt}/${maxAttempts})...`);
 
-      // Then check via API
-      const response = await fetch(
-        `${server.baseUrl}/dca/transactions/${walletAddress}`
-      );
+      try {
+        const transactions = await PurchasedCoin.find({ walletAddress });
 
-      if (response.status === 200) {
-        const transactions = await response.json();
         if (transactions.length > 0) {
-          console.log('Found transactions via API');
+          log(`Found ${transactions.length} transactions in database`);
           return transactions;
         }
-      }
 
-      if (i < retries - 1) {
-        console.log('No transactions found yet, waiting...');
-        await wait(interval);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } catch (error) {
+        log(`Error checking transactions: ${error}`);
+        throw error;
       }
     }
-    throw new Error('Timed out waiting for transactions');
+
+    throw new Error(`No transactions found after ${maxAttempts} attempts`);
   };
 
   it('should handle multiple DCA schedules for a wallet', async () => {

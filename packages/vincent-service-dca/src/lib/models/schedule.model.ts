@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+const scheduleSchema = new mongoose.Schema({
   scheduleId: {
     type: String,
     unique: true,
@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Create compound indices for common query patterns
-userSchema.index({ walletAddress: 1, active: 1 });
-userSchema.index({ walletAddress: 1, registeredAt: 1 });
+scheduleSchema.index({ walletAddress: 1, active: 1 });
+scheduleSchema.index({ walletAddress: 1, registeredAt: 1 });
 
-export const User = mongoose.model('User', userSchema);
+export const Schedule = mongoose.model('Schedule', scheduleSchema);
