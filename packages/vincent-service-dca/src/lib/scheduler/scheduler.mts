@@ -20,25 +20,30 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
   });
 
   // Define the job
-  const JOB_NAME = 'check user purchases';
+  const JOB_NAME = 'process dca schedules';
 
   agenda.define(JOB_NAME, async (job: Job) => {
-    logger.debug('\n--- Starting purchase check job ---');
-    const users = await User.find({ active: true });
-    logger.debug(`Found ${users.length} active users to check`);
+    logger.debug('\n--- Starting DCA schedule processing ---');
 
-    for (const user of users) {
-      logger.debug(`\nProcessing user: ${user.walletAddress}`);
-      logger.debug(`Purchase interval: ${user.purchaseIntervalSeconds}s`);
+    // Only get active DCA schedules
+    const activeSchedules = await User.find({ active: true });
+    logger.debug(
+      `Found ${activeSchedules.length} active DCA schedules to process`
+    );
+
+    for (const schedule of activeSchedules) {
+      logger.debug(`\nProcessing schedule for: ${schedule.walletAddress}`);
+      logger.debug(`Purchase interval: ${schedule.purchaseIntervalSeconds}s`);
+      logger.debug(`Purchase amount: ${schedule.purchaseAmount}`);
 
       const lastPurchase = await PurchasedCoin.findOne({
-        userId: user._id,
+        userId: schedule._id,
       }).sort({ purchasedAt: -1 });
 
       const now = new Date();
       let timeSinceLastPurchase: number;
       const secondsSinceRegistration =
-        (now.getTime() - user.registeredAt.getTime()) / 1000;
+        (now.getTime() - schedule.registeredAt.getTime()) / 1000;
 
       if (lastPurchase) {
         timeSinceLastPurchase =
@@ -53,7 +58,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
 
       // Calculate how many intervals have passed since registration
       const intervalsPassed = Math.floor(
-        secondsSinceRegistration / user.purchaseIntervalSeconds
+        secondsSinceRegistration / schedule.purchaseIntervalSeconds
       );
 
       logger.debug(
@@ -65,8 +70,8 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
       // For first purchase: At least one interval has passed since registration
       // For subsequent purchases: Enough time has passed since last purchase
       const shouldPurchase = !lastPurchase
-        ? secondsSinceRegistration >= user.purchaseIntervalSeconds
-        : timeSinceLastPurchase >= user.purchaseIntervalSeconds;
+        ? secondsSinceRegistration >= schedule.purchaseIntervalSeconds
+        : timeSinceLastPurchase >= schedule.purchaseIntervalSeconds;
 
       logger.debug(
         `Comparison: ${
@@ -75,23 +80,23 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
           !lastPurchase
             ? secondsSinceRegistration.toFixed(3)
             : timeSinceLastPurchase.toFixed(3)
-        }s elapsed >= ${user.purchaseIntervalSeconds}s interval`
+        }s elapsed >= ${schedule.purchaseIntervalSeconds}s interval`
       );
       logger.debug(`Should purchase? ${shouldPurchase}`);
 
       if (shouldPurchase) {
         try {
           const purchase = await executeSwap({
-            userId: user._id,
-            userWalletAddress: user.walletAddress,
-            purchaseAmount: user.purchaseAmount,
+            userId: schedule._id,
+            userWalletAddress: schedule.walletAddress,
+            purchaseAmount: schedule.purchaseAmount,
             purchasedAt: now,
           });
 
           if (!purchase) {
             logger.error(
-              'Failed to execute swap for user:',
-              user.walletAddress
+              'Failed to execute swap for wallet:',
+              schedule.walletAddress
             );
           }
         } catch (error) {
@@ -101,7 +106,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
         logger.debug('Skipping purchase - not time yet');
       }
     }
-    logger.debug('\n--- Finished purchase check job ---\n');
+    logger.debug('\n--- Finished DCA schedule processing ---\n');
   });
 
   return agenda;
@@ -118,7 +123,7 @@ export async function startScheduler() {
 
   // Schedule the job to run every second
   logger.debug('Scheduling job to run every second...');
-  await agenda.every('1 second', 'check user purchases');
+  await agenda.every('1 second', 'process dca schedules');
 
   // List all jobs
   const jobs = await agenda.jobs({});

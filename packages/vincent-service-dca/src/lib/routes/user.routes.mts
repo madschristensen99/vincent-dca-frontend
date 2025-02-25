@@ -1,58 +1,69 @@
 import { type FastifyInstance } from 'fastify';
 import { User } from '../models/user.model.mjs';
-import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
 
 export async function userRoutes(fastify: FastifyInstance) {
-  // Get all users
-  fastify.get('/users', async () => {
-    return await User.find();
+  // Get all DCA schedules
+  fastify.get('/dca/schedules', async () => {
+    return await User.find().select(
+      'walletAddress purchaseIntervalSeconds purchaseAmount active registeredAt'
+    );
   });
 
-  // Get user by wallet address
-  fastify.get('/users/:walletAddress', async (request, reply) => {
+  // Get DCA schedule by wallet address
+  fastify.get('/dca/schedules/:walletAddress', async (request, reply) => {
     const { walletAddress } = request.params as { walletAddress: string };
-    const user = await User.findOne({ walletAddress });
+    const user = await User.findOne({ walletAddress }).select(
+      'walletAddress purchaseIntervalSeconds purchaseAmount active registeredAt'
+    );
 
     if (!user) {
-      reply.code(404).send({ error: 'User not found' });
+      reply.code(404).send({ error: 'DCA schedule not found' });
       return;
     }
 
     return user;
   });
 
-  // Create new user
-  fastify.post('/users', async (request, reply) => {
+  // Register new DCA schedule
+  fastify.post('/dca/schedules', async (request, reply) => {
     const userData = request.body as {
       walletAddress: string;
-      purchaseIntervalMinutes: number;
+      purchaseIntervalSeconds: number;
       purchaseAmount: string;
     };
 
     try {
-      const user = new User(userData);
+      const user = new User({
+        ...userData,
+        active: true,
+      });
       await user.save();
       reply.code(201).send(user);
     } catch (error) {
-      reply.code(400).send({ error: 'Invalid user data' });
+      reply.code(400).send({ error: 'Invalid DCA schedule data' });
     }
   });
 
-  // Deactivate user
-  fastify.patch('/users/:walletAddress/deactivate', async (request, reply) => {
-    const { walletAddress } = request.params as { walletAddress: string };
+  // Deactivate DCA schedule
+  fastify.patch(
+    '/dca/schedules/:walletAddress/deactivate',
+    async (request, reply) => {
+      const { walletAddress } = request.params as { walletAddress: string };
 
-    const result = await User.findOneAndUpdate(
-      { walletAddress },
-      { active: false },
-      { new: true }
-    );
+      const result = await User.findOneAndUpdate(
+        { walletAddress },
+        { active: false },
+        { new: true }
+      ).select(
+        'walletAddress purchaseIntervalSeconds purchaseAmount active registeredAt'
+      );
 
-    if (!result) {
-      reply.code(404).send({ error: 'User not found' });
-      return;
+      if (!result) {
+        reply.code(404).send({ error: 'DCA schedule not found' });
+        return;
+      }
+
+      return result;
     }
-
-    reply.code(200).send({ message: 'User successfully deactivated' });
-  });
+  );
 }

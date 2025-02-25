@@ -137,7 +137,10 @@ export async function executeSwap({
       },
     });
 
-    console.log('litActionResponse', litActionResponse);
+    logger.debug('Lit Action Response:', litActionResponse);
+
+    const swapResult = JSON.parse(litActionResponse.response as string);
+    const success = swapResult.status === 'success';
 
     // Create a purchase record
     const purchase = new PurchasedCoin({
@@ -145,13 +148,16 @@ export async function executeSwap({
       coinAddress: topCoin.coinAddress,
       symbol: topCoin.symbol,
       amount: purchaseAmount,
-      priceAtPurchase: parseFloat(topCoin.price),
-      txHash: `0x${Math.random().toString(16).slice(2)}`, // Mock transaction hash
+      priceAtPurchase: topCoin.price, // Already a string from the API
+      txHash: swapResult.swapHash,
+      success,
       purchasedAt,
     });
     await purchase.save();
 
-    logger.debug(`Successfully created purchase record for ${topCoin.symbol}`);
+    logger.debug(
+      `Successfully created purchase record for ${topCoin.symbol} with tx hash ${swapResult.swapHash}`
+    );
     return purchase;
   } catch (error) {
     logger.error('Purchase failed:', error);
