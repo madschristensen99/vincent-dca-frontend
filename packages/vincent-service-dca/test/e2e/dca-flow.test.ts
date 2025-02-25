@@ -22,24 +22,24 @@ describe('DCA Flow', () => {
   }, 10000); // 10 second timeout for setup
 
   afterEach(async () => {
-    // Clean up database first while connection is still open
-    await User.deleteMany({});
-    await PurchasedCoin.deleteMany({});
-
-    // Stop server
+    // Stop server first to prevent new operations
     await server.stop();
 
     // Clear all timeouts
     timeouts.forEach(clearTimeout);
     timeouts = [];
 
+    // Clean up database while connection is still open
+    await User.deleteMany({});
+    await PurchasedCoin.deleteMany({});
+
+    // Add a small delay to ensure all DB operations complete
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     // Close MongoDB connection last
     if (mongoConnection) {
       await mongoConnection.disconnect();
     }
-
-    // Add a small delay to ensure all operations complete
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }, 10000); // 10 second timeout for cleanup
 
   const wait = (ms: number) => {
@@ -52,7 +52,7 @@ describe('DCA Flow', () => {
   // Helper function to retry fetching transactions until they appear
   const waitForTransactions = async (
     walletAddress: string,
-    retries = 30, // Increased retries
+    retries = 30,
     interval = 2000
   ) => {
     for (let i = 0; i < retries; i++) {
@@ -93,115 +93,112 @@ describe('DCA Flow', () => {
     throw new Error('Timed out waiting for transactions');
   };
 
-  it('should complete a full DCA flow', async () => {
-    console.log('\n--- Starting DCA flow test ---');
+  it('should handle multiple DCA schedules for a wallet', async () => {
+    const walletAddress = '0xE42534Ce546f54234d9DA51F6CA3c2eD1D682990';
+    const scheduleAmount1 = '0.0001';
+    const scheduleAmount2 = '0.0002';
 
-    // 1. Get all schedules (should be empty)
-    console.log('Checking initial schedules...');
-    const initialSchedulesResponse = await fetch(
-      `${server.baseUrl}/dca/schedules`
-    );
-    expect(initialSchedulesResponse.status).toBe(200);
-    const initialSchedules = await initialSchedulesResponse.json();
-    expect(initialSchedules).toHaveLength(0);
-
-    // 2. Create a new DCA schedule
-    console.log('Creating new DCA schedule...');
-    const scheduleData = {
-      walletAddress: '0xE42534Ce546f54234d9DA51F6CA3c2eD1D682990',
-      purchaseIntervalSeconds: 10, // 10 seconds for testing
-      purchaseAmount: '0.0005',
-    };
-
-    const createResponse = await fetch(`${server.baseUrl}/dca/schedules`, {
+    // Create first schedule
+    const schedule1Response = await fetch(`${server.baseUrl}/dca/schedules`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scheduleData),
+      body: JSON.stringify({
+        walletAddress,
+        purchaseIntervalSeconds: 10,
+        purchaseAmount: scheduleAmount1,
+      }),
     });
+    expect(schedule1Response.status).toBe(201);
+    const schedule1 = await schedule1Response.json();
+    expect(schedule1.scheduleId).toBeDefined();
+    expect(schedule1.active).toBe(true);
 
-    if (createResponse.status !== 201) {
-      const errorData = await createResponse.json();
-      console.log('Error creating schedule:', errorData);
-    }
+    // Create second schedule
+    const schedule2Response = await fetch(`${server.baseUrl}/dca/schedules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        walletAddress,
+        purchaseIntervalSeconds: 20,
+        purchaseAmount: scheduleAmount2,
+      }),
+    });
+    expect(schedule2Response.status).toBe(201);
+    const schedule2 = await schedule2Response.json();
+    expect(schedule2.scheduleId).toBeDefined();
+    expect(schedule2.active).toBe(true);
 
-    expect(createResponse.status).toBe(201);
-    const createdSchedule = await createResponse.json();
-    expect(createdSchedule.walletAddress).toBe(
-      scheduleData.walletAddress.toLowerCase()
+    // Get all schedules for wallet
+    const getSchedulesResponse = await fetch(
+      `${server.baseUrl}/dca/schedules/${walletAddress}`
     );
-    expect(createdSchedule.purchaseIntervalSeconds).toBe(
-      scheduleData.purchaseIntervalSeconds
+    expect(getSchedulesResponse.status).toBe(200);
+    const schedules = await getSchedulesResponse.json();
+    expect(schedules.length).toBe(2);
+    expect(schedules.map((s: any) => s.purchaseAmount)).toContain(
+      scheduleAmount1
     );
-    expect(createdSchedule.active).toBe(true);
-
-    // 3. Get specific schedule
-    console.log('Fetching created schedule...');
-    const scheduleResponse = await fetch(
-      `${server.baseUrl}/dca/schedules/${scheduleData.walletAddress}`
-    );
-    expect(scheduleResponse.status).toBe(200);
-    const schedule = await scheduleResponse.json();
-    expect(schedule.walletAddress).toBe(
-      scheduleData.walletAddress.toLowerCase()
+    expect(schedules.map((s: any) => s.purchaseAmount)).toContain(
+      scheduleAmount2
     );
 
-    // 4. Wait for first purchase with retries
-    console.log('Waiting for first purchase...');
-    const transactions = await waitForTransactions(scheduleData.walletAddress);
-    expect(transactions.length).toBeGreaterThan(0);
-    expect(transactions[0].success).toBe(true);
-    expect(transactions[0].amount).toBe(scheduleData.purchaseAmount);
-
-    // 5. Check latest transaction
-    console.log('Checking latest transaction...');
-    const latestTransactionResponse = await fetch(
-      `${server.baseUrl}/dca/transactions/${scheduleData.walletAddress}/latest`
+    // Get schedule by ID
+    const getScheduleByIdResponse = await fetch(
+      `${server.baseUrl}/dca/schedules/id/${schedule1.scheduleId}`
     );
-    expect(latestTransactionResponse.status).toBe(200);
-    const latestTransaction = await latestTransactionResponse.json();
-    expect(latestTransaction.txHash).toBe(transactions[0].txHash);
+    expect(getScheduleByIdResponse.status).toBe(200);
+    const scheduleById = await getScheduleByIdResponse.json();
+    expect(scheduleById.scheduleId).toBe(schedule1.scheduleId);
 
-    // 6. Deactivate schedule
-    console.log('Deactivating schedule...');
+    // Wait for first purchase from both schedules
+    await wait(25000); // Increased wait time to ensure both schedules have time to execute
+    const transactions = await waitForTransactions(walletAddress);
+    expect(transactions.length).toBeGreaterThanOrEqual(2);
+
+    // Deactivate first schedule
     const deactivateResponse = await fetch(
-      `${server.baseUrl}/dca/schedules/${scheduleData.walletAddress}/deactivate`,
+      `${server.baseUrl}/dca/schedules/${schedule1.scheduleId}/deactivate`,
       { method: 'PATCH' }
     );
     expect(deactivateResponse.status).toBe(200);
     const deactivatedSchedule = await deactivateResponse.json();
     expect(deactivatedSchedule.active).toBe(false);
 
-    // Verify deactivation took effect
-    console.log('Verifying deactivation...');
-    const verifyDeactivationResponse = await fetch(
-      `${server.baseUrl}/dca/schedules/${scheduleData.walletAddress}`
+    // Verify first schedule is inactive but second is still active
+    const getSchedulesAfterDeactivateResponse = await fetch(
+      `${server.baseUrl}/dca/schedules/${walletAddress}`
     );
-    expect(verifyDeactivationResponse.status).toBe(200);
-    const verifiedSchedule = await verifyDeactivationResponse.json();
-    expect(verifiedSchedule.active).toBe(false);
-
-    // Add a small delay to ensure deactivation is processed by scheduler
-    await wait(2000);
-
-    // 7. Wait another interval and verify no new purchases
-    console.log('Waiting another interval to verify no new purchases...');
-    await wait(15 * 1000);
-
-    const finalTransactionsResponse = await fetch(
-      `${server.baseUrl}/dca/transactions/${scheduleData.walletAddress}`
+    const schedulesAfterDeactivate =
+      await getSchedulesAfterDeactivateResponse.json();
+    const schedule1After = schedulesAfterDeactivate.find(
+      (s: any) => s.scheduleId === schedule1.scheduleId
     );
-    const finalTransactions = await finalTransactionsResponse.json();
-    expect(finalTransactions.length).toBe(transactions.length); // Should not have increased
-
-    // 8. Get all transactions
-    console.log('Checking all DCA transactions...');
-    const allTransactionsResponse = await fetch(
-      `${server.baseUrl}/dca/transactions`
+    const schedule2After = schedulesAfterDeactivate.find(
+      (s: any) => s.scheduleId === schedule2.scheduleId
     );
-    expect(allTransactionsResponse.status).toBe(200);
-    const allTransactions = await allTransactionsResponse.json();
-    expect(allTransactions.length).toBeGreaterThan(0);
+    expect(schedule1After.active).toBe(false);
+    expect(schedule2After.active).toBe(true);
 
-    console.log('--- Test completed ---\n');
-  }, 180000); // 3 minute timeout
+    // Wait for another purchase (should only come from second schedule)
+    await wait(22000);
+    const laterTransactions = await waitForTransactions(walletAddress);
+    const newTransactionsCount = laterTransactions.length - transactions.length;
+    expect(newTransactionsCount).toBe(1); // Only one new transaction from the active schedule
+
+    // Reactivate first schedule
+    const activateResponse = await fetch(
+      `${server.baseUrl}/dca/schedules/${schedule1.scheduleId}/activate`,
+      { method: 'PATCH' }
+    );
+    expect(activateResponse.status).toBe(200);
+    const reactivatedSchedule = await activateResponse.json();
+    expect(reactivatedSchedule.active).toBe(true);
+
+    // Wait for purchases from both schedules again
+    await wait(12000);
+    const finalTransactions = await waitForTransactions(walletAddress);
+    const finalNewTransactionsCount =
+      finalTransactions.length - laterTransactions.length;
+    expect(finalNewTransactionsCount).toBeGreaterThanOrEqual(2);
+  }, 120000); // 2 minute timeout for the entire test
 });
