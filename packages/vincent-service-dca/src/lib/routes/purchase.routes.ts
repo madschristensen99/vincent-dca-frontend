@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { User } from '../models/user.model.mjs';
-import { PurchasedCoin } from '../models/purchased-coin.model.mjs';
+import { User } from '../models/user.model';
+import { PurchasedCoin } from '../models/purchased-coin.model';
 
 export async function purchaseRoutes(fastify: FastifyInstance) {
   // Get all DCA transactions

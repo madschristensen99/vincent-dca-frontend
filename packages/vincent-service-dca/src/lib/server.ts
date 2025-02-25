@@ -1,14 +1,15 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { Agenda } from 'agenda';
+import cors from '@fastify/cors';
 
-import { userRoutes } from './routes/user.routes.mjs';
-import { purchaseRoutes } from './routes/purchase.routes.mjs';
+import { userRoutes } from './routes/user.routes';
+import { purchaseRoutes } from './routes/purchase.routes';
 import {
   createAgenda,
   startScheduler,
   stopScheduler,
-} from './scheduler/scheduler.mjs';
+} from './scheduler/scheduler';
 
 export interface ServerConfig {
   port?: number;
@@ -16,6 +17,33 @@ export interface ServerConfig {
   dbUri?: string;
   debug?: boolean;
 }
+
+export const DOMAIN =
+  process.env.DOMAIN ||
+  process.env.HEROKU_APP_DEFAULT_DOMAIN_NAME ||
+  (`localhost:${process.env.PORT}` as const);
+
+const corsOptions = {
+  optionsSuccessStatus: 200,
+  origin: async (origin: string | undefined): Promise<boolean> => {
+    if (!origin) {
+      return true;
+    }
+
+    // FIXME: Don't allow localhost to hit production instances of this service.
+    const allowedOrigins = [
+      /^https?:\/\/localhost(:\d+)?$/, // localhost with any port
+      // eslint-disable-next-line no-useless-escape
+      new RegExp(`^https?:\/\/${DOMAIN}$`),
+    ];
+
+    if (allowedOrigins.some((regex) => regex.test(origin))) {
+      return true;
+    } else {
+      throw new Error('Not allowed by CORS');
+    }
+  },
+};
 
 export class Server {
   protected fastify: FastifyInstance;
@@ -38,6 +66,8 @@ export class Server {
   async start() {
     // Wait for agenda to be ready and start the scheduler
     await startScheduler();
+
+    await this.fastify.register(cors, corsOptions);
 
     // Register routes
     await this.fastify.register(userRoutes);
@@ -70,19 +100,3 @@ export class Server {
     this.port = port;
   }
 }
-
-// Create and export default server instance
-const server = new Server();
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  try {
-    await server.stop();
-    process.exit(0);
-  } catch (err) {
-    console.error('Error closing server:', err);
-    process.exit(1);
-  }
-});
-
-export default server;

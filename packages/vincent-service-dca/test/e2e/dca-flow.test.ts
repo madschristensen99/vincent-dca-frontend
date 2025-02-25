@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import fetch from 'node-fetch';
 import mongoose from 'mongoose';
 
-import '../setup.mts';
-import { TestServer } from '../helpers/test-server.mjs';
-import { PurchasedCoin } from '../../src/lib/models/purchased-coin.model.mjs';
-import { User } from '../../src/lib/models/user.model.mjs';
+import '../setup';
+import { TestServer } from '../helpers/test-server';
+import { PurchasedCoin } from '../../src/lib/models/purchased-coin.model';
+import { User } from '../../src/lib/models/user.model';
 
 describe('DCA Flow', () => {
   let server: TestServer;

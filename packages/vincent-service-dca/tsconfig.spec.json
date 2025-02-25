@@ -2,15 +2,28 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./out-tsc/jest",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "esnext",
+    "moduleResolution": "Bundler",
     "types": ["jest", "node"]
   },
   "include": [
     "jest.config.mjs",
-    "test/**/*.mts",
-    "test/**/*.test.mts",
-    "src/**/*.mts"
+    "test/**/*.ts",
+    "test/**/*.test.ts",
+    "src/**/*.ts",
+    "src/lib/logger.ts",
+    "src/lib/init-db.ts",
+    "src/lib/models/purchased-coin.model.ts",
+    "src/lib/models/user.model.ts",
+    "src/lib/routes/purchase.routes.ts",
+    "src/lib/routes/user.routes.ts",
+    "src/lib/scheduler/scheduler.ts",
+    "src/lib/server.ts",
+    "src/lib/services/execute-swap/capacity-credit.ts",
+    "src/lib/services/execute-swap/execute-swap.ts",
+    "src/lib/services/fetch-base-meme-coins.ts",
+    "test/helpers/test-server.ts",
+    "test/setup.ts"
   ],
   "references": [
     {

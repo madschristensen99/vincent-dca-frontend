@@ -1,5 +1,6 @@
 import { type FastifyInstance } from 'fastify';
-import { User } from '../models/user.model.mjs';
+
+import { User } from '../models/user.model';
 
 export async function userRoutes(fastify: FastifyInstance) {
   // Get all DCA schedules
@@ -38,7 +39,7 @@ export async function userRoutes(fastify: FastifyInstance) {
         active: true,
       });
       await user.save();
-      reply.code(201).send(user);
+      reply.code(201).send(user.toObject());
     } catch (error) {
       reply.code(400).send({ error: 'Invalid DCA schedule data' });
     }

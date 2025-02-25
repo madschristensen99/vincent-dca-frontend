@@ -12,14 +12,14 @@ import {
   LitActionResource,
 } from '@lit-protocol/auth-helpers';
 
-import { PurchasedCoin } from '../../models/purchased-coin.model.mjs';
-import { fetchTopBaseMemeCoins } from '../fetch-base-meme-coins.mjs';
-import { logger } from '../../logger.mjs';
+import { PurchasedCoin } from '../../models/purchased-coin.model';
+import { fetchTopBaseMemeCoins } from '../fetch-base-meme-coins';
+import { logger } from '../../logger';
 import {
   type CapacityCreditInfo,
   isCapacityCreditExpired,
   mintCapacityCredit,
-} from './capacity-credit.mjs';
+} from './capacity-credit';
 
 interface ExecuteSwapParams {
   userId: Types.ObjectId;
