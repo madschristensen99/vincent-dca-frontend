@@ -75,7 +75,7 @@ export class Server {
 
     // Start server
     try {
-      await this.fastify.listen({ port: this.port });
+      await this.fastify.listen({ host: '0.0.0.0', port: this.port });
       this.fastify.log.info(`Server is running on port ${this.port}`);
     } catch (err) {
       this.fastify.log.error(err);
