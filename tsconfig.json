@@ -5,6 +5,9 @@
   "references": [
     {
       "path": "./packages/vincent-service-dca"
+    },
+    {
+      "path": "./packages/vincent-tool-uniswap-swap"
     }
   ]
 }
