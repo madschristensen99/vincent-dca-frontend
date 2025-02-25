@@ -4,7 +4,9 @@
   "license": "MIT",
   "scripts": {
     "build": "npx nx run-many -t build",
+    "build:tools:lit-actions": "npx nx run-many -t build:action --projects vincent-tool-uniswap-swap",
     "clean": "node tools/clean.js",
+    "deploy:tools:lit-actions": "npx nx run-many -t deploy:action --projects vincent-tool-uniswap-swap",
     "lint": "npx nx run-many -t lint"
   },
   "devDependencies": {

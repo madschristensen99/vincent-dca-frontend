@@ -11,9 +11,66 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.36.0",
+    "esbuild": "^0.25.0"
+  },
   "nx": {
     "sourceRoot": "packages/vincent-tool-uniswap-swap/src",
     "projectType": "library",
-    "name": "vincent-tool-uniswap-swap"
+    "name": "vincent-tool-uniswap-swap",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/vincent-tool-uniswap-swap/dist",
+          "main": "packages/vincent-tool-uniswap-swap/src/index.ts",
+          "tsConfig": "packages/vincent-tool-uniswap-swap/tsconfig.lib.json",
+          "assets": [
+            "packages/vincent-tool-uniswap-swap/*.md"
+          ]
+        }
+      },
+      "build:action": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "commands": [
+            "node tools/scripts/build-lit-action.js"
+          ],
+          "cwd": "packages/vincent-tool-uniswap-swap",
+          "parallel": false
+        },
+        "outputs": [
+          "{workspaceRoot}/packages/vincent-tool-uniswap-swap/dist/deployed-lit-action.js"
+        ]
+      },
+      "deploy:action": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build:action"
+        ],
+        "options": {
+          "commands": [
+            "node tools/scripts/deploy-lit-action.js"
+          ],
+          "cwd": "packages/vincent-tool-uniswap-swap"
+        }
+      },
+      "publish": {
+        "executor": "@nx/js:npm-publish",
+        "dependsOn": [
+          "deploy"
+        ],
+        "options": {
+          "packageRoot": "dist"
+        }
+      }
+    }
   }
 }

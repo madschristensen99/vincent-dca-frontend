@@ -83,6 +83,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
         try {
           const purchase = await executeSwap({
             userId: user._id,
+            userWalletAddress: user.walletAddress,
             purchasedAt: now,
           });
 

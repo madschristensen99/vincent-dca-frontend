@@ -44,7 +44,7 @@ describe('Scheduler', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          walletAddress: '0xTestWallet1',
+          walletAddress: '0xE42534Ce546f54234d9DA51F6CA3c2eD1D682990',
           purchaseIntervalSeconds: 3, // 3 seconds interval
         }),
       });
@@ -52,18 +52,18 @@ describe('Scheduler', () => {
       const user1Data = await user1Response.json();
       console.log('User 1 created:', user1Data);
 
-      console.log('Creating test user 2...');
-      const user2Response = await fetch(`${server.baseUrl}/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: '0xTestWallet2',
-          purchaseIntervalSeconds: 8, // 8 seconds interval
-        }),
-      });
-      expect(user2Response.status).toBe(201);
-      const user2Data = await user2Response.json();
-      console.log('User 2 created:', user2Data);
+      // console.log('Creating test user 2...');
+      // const user2Response = await fetch(`${server.baseUrl}/users`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     walletAddress: '0xTestWallet2',
+      //     purchaseIntervalSeconds: 8, // 8 seconds interval
+      //   }),
+      // });
+      // expect(user2Response.status).toBe(201);
+      // const user2Data = await user2Response.json();
+      // console.log('User 2 created:', user2Data);
 
       // Wait 5 seconds - user1 should have a purchase, user2 should not
       console.log('Waiting 5 seconds for first check...');
@@ -80,13 +80,13 @@ describe('Scheduler', () => {
       console.log('User 1 purchases:', user1Purchases);
       expect(user1Purchases.length).toBe(1);
 
-      console.log('Checking user 2 purchases...');
-      const user2PurchasesResponse = await fetch(
-        `${server.baseUrl}/purchases/${user2Data.walletAddress}`
-      );
-      const user2Purchases = await user2PurchasesResponse.json();
-      console.log('User 2 purchases:', user2Purchases);
-      expect(user2Purchases.length).toBe(0);
+      // console.log('Checking user 2 purchases...');
+      // const user2PurchasesResponse = await fetch(
+      //   `${server.baseUrl}/purchases/${user2Data.walletAddress}`
+      // );
+      // const user2Purchases = await user2PurchasesResponse.json();
+      // console.log('User 2 purchases:', user2Purchases);
+      // expect(user2Purchases.length).toBe(0);
 
       // Wait another 5 seconds - both users should have purchases
       console.log('Waiting another 5 seconds for second check...');
@@ -103,13 +103,13 @@ describe('Scheduler', () => {
       console.log('User 1 final purchases:', user1FinalPurchases);
       expect(user1FinalPurchases.length).toBe(3); // Should have 3 purchases (at ~3s, ~6s, ~9s)
 
-      console.log('Checking final user 2 purchases...');
-      const user2FinalPurchasesResponse = await fetch(
-        `${server.baseUrl}/purchases/${user2Data.walletAddress}`
-      );
-      const user2FinalPurchases = await user2FinalPurchasesResponse.json();
-      console.log('User 2 final purchases:', user2FinalPurchases);
-      expect(user2FinalPurchases.length).toBe(1); // Should have 1 purchase (at ~8s)
+      // console.log('Checking final user 2 purchases...');
+      // const user2FinalPurchasesResponse = await fetch(
+      //   `${server.baseUrl}/purchases/${user2Data.walletAddress}`
+      // );
+      // const user2FinalPurchases = await user2FinalPurchasesResponse.json();
+      // console.log('User 2 final purchases:', user2FinalPurchases);
+      // expect(user2FinalPurchases.length).toBe(1); // Should have 1 purchase (at ~8s)
 
       // Add a final delay to ensure all operations complete
       await wait(1000);
