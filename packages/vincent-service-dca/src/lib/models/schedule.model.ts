@@ -1,12 +1,18 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
-  walletAddress: {
+const scheduleSchema = new mongoose.Schema({
+  scheduleId: {
     type: String,
     unique: true,
     required: true,
+    default: () => new mongoose.Types.ObjectId().toString(),
+  },
+  walletAddress: {
+    type: String,
+    required: true,
     lowercase: true, // Ethereum addresses should be lowercase
     match: /^0x[a-fA-F0-9]{40}$/, // Validate Ethereum address format
+    index: true, // Index for faster lookups by wallet address
   },
   purchaseIntervalSeconds: {
     type: Number,
@@ -41,7 +47,8 @@ const userSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// Create compound index for common query patterns
-userSchema.index({ active: 1, registeredAt: 1 });
+// Create compound indices for common query patterns
+scheduleSchema.index({ walletAddress: 1, active: 1 });
+scheduleSchema.index({ walletAddress: 1, registeredAt: 1 });
 
-export const User = mongoose.model('User', userSchema);
+export const Schedule = mongoose.model('Schedule', scheduleSchema);

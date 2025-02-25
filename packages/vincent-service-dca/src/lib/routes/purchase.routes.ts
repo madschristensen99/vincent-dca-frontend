@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import { User } from '../models/user.model';
 import { PurchasedCoin } from '../models/purchased-coin.model';
 
 export async function purchaseRoutes(fastify: FastifyInstance) {
@@ -7,22 +6,23 @@ export async function purchaseRoutes(fastify: FastifyInstance) {
   fastify.get('/dca/transactions', async () => {
     return await PurchasedCoin.find()
       .sort({ purchasedAt: -1 })
-      .populate('userId', 'walletAddress');
+      .populate('scheduleId', 'walletAddress');
   });
 
   // Get all DCA transactions for a wallet address
   fastify.get('/dca/transactions/:walletAddress', async (request, reply) => {
     const { walletAddress } = request.params as { walletAddress: string };
-    const user = await User.findOne({ walletAddress });
 
-    if (!user) {
-      reply.code(404).send({ error: 'DCA schedule not found' });
-      return;
-    }
-
-    const purchases = await PurchasedCoin.find({ userId: user._id }).sort({
+    const purchases = await PurchasedCoin.find({ walletAddress }).sort({
       purchasedAt: -1,
     });
+
+    if (purchases.length === 0) {
+      reply
+        .code(404)
+        .send({ error: 'No transactions found for this wallet address' });
+      return;
+    }
 
     return purchases;
   });
@@ -32,21 +32,15 @@ export async function purchaseRoutes(fastify: FastifyInstance) {
     '/dca/transactions/:walletAddress/latest',
     async (request, reply) => {
       const { walletAddress } = request.params as { walletAddress: string };
-      const user = await User.findOne({ walletAddress });
-
-      if (!user) {
-        reply.code(404).send({ error: 'DCA schedule not found' });
-        return;
-      }
 
       const latestPurchase = await PurchasedCoin.findOne({
-        userId: user._id,
+        walletAddress,
       }).sort({ purchasedAt: -1 });
 
       if (!latestPurchase) {
         reply
           .code(404)
-          .send({ error: 'No transactions found for this schedule' });
+          .send({ error: 'No transactions found for this wallet address' });
         return;
       }
 

@@ -1,6 +1,6 @@
 import { Agenda, Job } from 'agenda';
 
-import { User } from '../models/user.model';
+import { Schedule } from '../models/schedule.model';
 import { PurchasedCoin } from '../models/purchased-coin.model';
 import { logger } from '../logger';
 import { executeSwap } from '../services/execute-swap/execute-swap';
@@ -26,7 +26,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
     logger.debug('\n--- Starting DCA schedule processing ---');
 
     // Only get active DCA schedules
-    const activeSchedules = await User.find({ active: true });
+    const activeSchedules = await Schedule.find({ active: true });
     logger.debug(
       `Found ${activeSchedules.length} active DCA schedules to process`
     );
@@ -37,7 +37,7 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
       logger.debug(`Purchase amount: ${schedule.purchaseAmount}`);
 
       const lastPurchase = await PurchasedCoin.findOne({
-        userId: schedule._id,
+        scheduleId: schedule._id,
       }).sort({ purchasedAt: -1 });
 
       const now = new Date();
@@ -87,8 +87,8 @@ export function createAgenda(dbUri: string, debug = false): Agenda {
       if (shouldPurchase) {
         try {
           const purchase = await executeSwap({
-            userId: schedule._id,
-            userWalletAddress: schedule.walletAddress,
+            scheduleId: schedule._id,
+            walletAddress: schedule.walletAddress,
             purchaseAmount: schedule.purchaseAmount,
             purchasedAt: now,
           });

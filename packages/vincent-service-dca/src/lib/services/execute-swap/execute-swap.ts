@@ -22,8 +22,8 @@ import {
 } from './capacity-credit';
 
 interface ExecuteSwapParams {
-  userId: Types.ObjectId;
-  userWalletAddress: string;
+  scheduleId: Types.ObjectId;
+  walletAddress: string;
   purchaseAmount: string;
   purchasedAt: Date;
 }
@@ -46,8 +46,8 @@ const BASE_RPC_URL = getEnv('BASE_RPC_URL');
 let CAPACITY_CREDIT_INFO: CapacityCreditInfo | null = null;
 
 export async function executeSwap({
-  userId,
-  userWalletAddress,
+  scheduleId,
+  walletAddress,
   purchaseAmount,
   purchasedAt,
 }: ExecuteSwapParams): Promise<InstanceType<typeof PurchasedCoin> | null> {
@@ -127,7 +127,7 @@ export async function executeSwap({
       ipfsId: VINCENT_TOOL_UNISWAP_SWAP_IPFS_ID,
       jsParams: {
         litActionParams: {
-          pkpEthAddress: userWalletAddress,
+          pkpEthAddress: walletAddress,
           rpcUrl: BASE_RPC_URL,
           chainId: '8453',
           tokenIn: '0x4200000000000000000000000000000000000006', // Wrapped ETH
@@ -142,13 +142,15 @@ export async function executeSwap({
     const swapResult = JSON.parse(litActionResponse.response as string);
     const success = swapResult.status === 'success';
 
-    // Create a purchase record
+    // Create a purchase record with all required fields
     const purchase = new PurchasedCoin({
-      userId,
-      coinAddress: topCoin.coinAddress,
+      scheduleId,
+      walletAddress,
+      name: topCoin.name,
       symbol: topCoin.symbol,
-      amount: purchaseAmount,
-      priceAtPurchase: topCoin.price, // Already a string from the API
+      coinAddress: topCoin.coinAddress,
+      price: topCoin.price,
+      purchaseAmount,
       txHash: swapResult.swapHash,
       success,
       purchasedAt,

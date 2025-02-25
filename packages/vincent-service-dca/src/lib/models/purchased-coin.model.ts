@@ -1,66 +1,78 @@
 import mongoose from 'mongoose';
 
 const purchasedCoinSchema = new mongoose.Schema({
-  userId: {
+  scheduleId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Schedule',
     required: true,
-    index: true, // Index for faster lookups by user
+    index: true, // Index for faster lookups by schedule
   },
-  coinAddress: {
+  walletAddress: {
     type: String,
     required: true,
-    lowercase: true, // Ethereum addresses should be lowercase
-    match: /^0x[a-fA-F0-9]{40}$/, // Validate Ethereum address format
+    lowercase: true,
+    match: /^0x[a-fA-F0-9]{40}$/,
+    index: true,
   },
   symbol: {
     type: String,
     required: true,
-    uppercase: true, // Coin symbols are typically uppercase
   },
-  amount: {
+  name: {
+    type: String,
+    required: true,
+  },
+  coinAddress: {
+    type: String,
+    required: true,
+    lowercase: true,
+    match: /^0x[a-fA-F0-9]{40}$/,
+  },
+  price: {
     type: String,
     required: true,
     validate: {
       validator: function (v: string) {
-        // Validate that it's a proper decimal string
-        return /^\d*\.?\d+$/.test(v);
-      },
-      message: 'Amount must be a valid decimal number',
-    },
-  },
-  priceAtPurchase: {
-    type: String,
-    required: true,
-    validate: {
-      validator: function (v: string) {
-        // Validate that it's a proper decimal string
         return /^\d*\.?\d+$/.test(v);
       },
       message: 'Price must be a valid decimal number',
     },
   },
-  txHash: {
+  purchaseAmount: {
     type: String,
-    unique: true,
     required: true,
-    match: /^0x[a-fA-F0-9]{64}$/, // Validate transaction hash format
+    validate: {
+      validator: function (v: string) {
+        return /^\d*\.?\d+$/.test(v);
+      },
+      message: 'Purchase amount must be a valid decimal number',
+    },
   },
   success: {
     type: Boolean,
     required: true,
-    index: true, // Index for faster queries on success status
+    default: false,
+    index: true,
+  },
+  error: {
+    type: String,
+  },
+  txHash: {
+    type: String,
+    sparse: true,
+    unique: true,
   },
   purchasedAt: {
     type: Date,
+    required: true,
     default: Date.now,
-    index: true, // Index for faster sorting by purchase date
+    index: true,
   },
 });
 
-// Create compound index for common query patterns
-purchasedCoinSchema.index({ userId: 1, purchasedAt: -1 });
-purchasedCoinSchema.index({ userId: 1, success: 1 });
+// Create compound indices for common query patterns
+purchasedCoinSchema.index({ scheduleId: 1, purchasedAt: -1 });
+purchasedCoinSchema.index({ scheduleId: 1, success: 1 });
 
 export const PurchasedCoin = mongoose.model(
   'PurchasedCoin',

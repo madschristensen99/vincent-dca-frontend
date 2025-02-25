@@ -142,8 +142,22 @@ async function permitLitActionAsAuthMethod() {
   );
 }
 
+async function getDelegatees(appManagerAddress: string) {
+  const vincentAppDelegationRegistryContract = new ethers.Contract(
+    VINCENT_APP_DELEGATION_REGISTRY_ADDRESS as string,
+    VINCENT_APP_DELEGATION_REGISTRY_ABI,
+    ethersSignerAppManager
+  );
+
+  const delegatees = await vincentAppDelegationRegistryContract.getDelegatees(
+    appManagerAddress
+  );
+  console.log('delegatees:', delegatees);
+}
+
 (async () => {
   // await addDelegatee();
   // await addRole();
-  await permitLitActionAsAuthMethod();
+  // await permitLitActionAsAuthMethod();
+  // await getDelegatees(ethersSignerAppManager.address);
 })();
