@@ -2,10 +2,17 @@
   "name": "@lit-protocol/vincent",
   "version": "0.0.0",
   "license": "MIT",
+  "engines": {
+    "node": "^20.11.1",
+    "pnpm": "9.15.0"
+  },
   "scripts": {
     "build": "npx nx run-many -t build",
+    "build:tools:lit-actions": "npx nx run-many -t build:action --projects vincent-tool-uniswap-swap",
     "clean": "node tools/clean.js",
-    "lint": "npx nx run-many -t lint"
+    "deploy:tools:lit-actions": "npx nx run-many -t deploy:action --projects vincent-tool-uniswap-swap",
+    "lint": "npx nx run-many -t lint",
+    "start-dca-backend": "nx run vincent-service-dca:start"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",

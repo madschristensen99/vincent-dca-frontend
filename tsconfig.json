@@ -4,7 +4,10 @@
   "include": [],
   "references": [
     {
-      "path": "./packages/vincent-app-dca"
+      "path": "./packages/vincent-service-dca"
+    },
+    {
+      "path": "./packages/vincent-tool-uniswap-swap"
     }
   ]
 }
