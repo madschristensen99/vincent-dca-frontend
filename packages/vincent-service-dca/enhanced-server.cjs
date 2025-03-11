@@ -18,6 +18,8 @@ const corsOptions = {
     const allowedOrigins = [
       /^https?:\/\/localhost(:\d+)?$/, // localhost with any port
       new RegExp(`^https?:\/\/${process.env.DOMAIN || 'localhost:3000'}$`),
+      /^https?:\/\/vincent-dca.*\.vercel\.app$/, // Allow all Vercel domains for this project
+      /^https?:\/\/vincent-dca-frontend.*\.vercel\.app$/, // Allow all Vercel domains for the frontend project
     ];
 
     if (allowedOrigins.some((regex) => regex.test(origin))) {
@@ -523,35 +525,34 @@ fastify.get('/admin/logs', async (request, reply) => {
 });
 
 // Start the server
-const start = async () => {
+async function start() {
   try {
     // Connect to MongoDB
     await mongoose.connect(dbUri);
     console.log('Connected to MongoDB');
-    
+
     // Register routes
     await registerScheduleRoutes();
     await registerPurchaseRoutes();
-    
+
+    // Serve static files
+    fastify.register(require('@fastify/static'), {
+      root: path.join(__dirname, 'public'),
+      prefix: '/',
+    });
+
+    // Start the server
+    const PORT = process.env.PORT || 3000;
+    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`Server is running on port ${PORT}`);
+
     // Start the DCA execution process
     startDCAExecutionProcess();
-    
-    // Start the server
-    await fastify.listen({ host: '0.0.0.0', port: 3000 });
-    console.log(`Server is running at http://localhost:3000`);
-    
-    // Handle graceful shutdown
-    process.on('SIGINT', async () => {
-      console.log('Shutting down server...');
-      await fastify.close();
-      await mongoose.disconnect();
-      process.exit(0);
-    });
   } catch (err) {
     console.error('Error starting server:', err);
     process.exit(1);
   }
-};
+}
 
 // DCA Execution Process
 let dcaExecutionInterval;
