@@ -7,9 +7,13 @@ const path = require('path');
 // Connect to MongoDB
 const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/vincent-service-dca';
 
-// Configure CORS with explicit Vercel domain
+// Configure CORS with explicit domains
 const corsOptions = {
-  origin: ['https://vincent-dca-hl6j.vercel.app', 'http://localhost:3001'],
+  origin: [
+    'https://vincent-dca-hl6j.vercel.app', 
+    'http://localhost:3001',
+    'https://vincent-dca-frontend-e9492df4e8c3.herokuapp.com'
+  ],
   methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
@@ -24,11 +28,16 @@ fastify.register(cors, corsOptions);
 
 // Add a hook to manually set CORS headers for all responses
 fastify.addHook('onRequest', (request, reply, done) => {
-  // Set CORS headers for all requests
-  reply.header('Access-Control-Allow-Origin', request.headers.origin || '*');
-  reply.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS, PATCH');
-  reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  reply.header('Access-Control-Allow-Credentials', 'true');
+  const origin = request.headers.origin;
+  
+  // Check if the origin is allowed
+  if (origin && corsOptions.origin.includes(origin)) {
+    // Set CORS headers for allowed origins
+    reply.header('Access-Control-Allow-Origin', origin);
+    reply.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS, PATCH');
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    reply.header('Access-Control-Allow-Credentials', 'true');
+  }
   
   // Handle preflight requests
   if (request.method === 'OPTIONS') {
