@@ -28,24 +28,28 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   }
 
   try {
-    // Set mode to 'no-cors' to bypass CORS restrictions
-    // Note: This will result in an "opaque" response that can't be read directly
-    // but will allow the request to be made without CORS errors
+    // Use regular CORS mode since backend is properly configured
     const response = await fetch(url, {
       ...options,
       headers,
       body,
-      mode: 'no-cors',
-      credentials: 'same-origin',
+      mode: 'cors',
+      credentials: 'include',
     });
 
-    // Since we're using no-cors mode, we can't actually read the response
-    // This is a temporary solution until we deploy to Heroku
-    // Return empty arrays or objects based on the endpoint to avoid TypeScript errors
-    if (endpoint.includes('/schedules')) {
-      return [] as unknown as T;
+    // Check if the response is ok
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `API request failed with status ${response.status}`);
     }
-    return {} as T;
+
+    // Parse JSON response
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json() as T;
+    }
+    
+    return await response.text() as unknown as T;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
     throw error;
