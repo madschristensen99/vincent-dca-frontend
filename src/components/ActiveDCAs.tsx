@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import '../styles/dca.css';
 
 // Define the backend API URL
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
