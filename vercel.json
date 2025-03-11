@@ -2,5 +2,11 @@
   "buildCommand": "cd packages/vincent-frontend && npm install && npm run build",
   "outputDirectory": "packages/vincent-frontend/.next",
   "installCommand": "cd packages/vincent-frontend && npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/packages/vincent-frontend/$1"
+    }
+  ]
 }
