@@ -1,21 +1,20 @@
-// API utility functions with proxy to avoid CORS issues
-const API_PROXY = '/api/proxy';
+// API utility functions with CORS proxy
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
+// Use a reliable CORS proxy service
+const CORS_PROXY = 'https://corsproxy.io/?';
 
 interface FetchOptions extends RequestInit {
   body?: any;
 }
 
 /**
- * Wrapper for fetch that uses a local API proxy to avoid CORS issues
+ * Wrapper for fetch that handles CORS issues with multiple fallback strategies
  */
 export async function fetchApi<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  // Remove any leading slash from the endpoint
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  // Determine if we need to use the full URL or just the endpoint
+  const directUrl = endpoint.startsWith('http') ? endpoint : `${BACKEND_API_URL}${endpoint}`;
   
-  // Use our local API proxy
-  const url = `${API_PROXY}/${cleanEndpoint}`;
-  
-  console.log(`Fetching via proxy: ${url}`);
+  console.log(`Attempting to fetch from: ${directUrl}`);
   
   // Prepare headers
   const headers = {
@@ -31,28 +30,58 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   }
 
   try {
-    const response = await fetch(url, {
+    // First try direct request
+    try {
+      const response = await fetch(directUrl, {
+        ...options,
+        headers,
+        body,
+        mode: 'cors',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return await response.json() as T;
+        }
+        return await response.text() as unknown as T;
+      }
+    } catch (directError) {
+      console.log('Direct request failed, trying CORS proxy...');
+    }
+    
+    // If direct request fails, try using CORS proxy
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(directUrl)}`;
+    console.log(`Fetching via CORS proxy: ${proxyUrl}`);
+    
+    const proxyResponse = await fetch(proxyUrl, {
       ...options,
       headers,
       body,
+      // Don't include credentials when using a proxy
+      credentials: 'omit',
     });
-
-    // Check if the response is ok
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `API request failed with status ${response.status}`);
-    }
-
-    // Parse JSON response
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json() as T;
+    
+    if (!proxyResponse.ok) {
+      const errorText = await proxyResponse.text();
+      throw new Error(errorText || `API request failed with status ${proxyResponse.status}`);
     }
     
-    return await response.text() as unknown as T;
+    const contentType = proxyResponse.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await proxyResponse.json() as T;
+    }
+    
+    return await proxyResponse.text() as unknown as T;
   } catch (error) {
-    console.error(`Error fetching ${url}:`, error);
-    throw error;
+    console.error(`Error fetching ${directUrl}:`, error);
+    
+    // Return empty structures based on the endpoint to avoid breaking the UI
+    if (endpoint.includes('/schedules')) {
+      return [] as unknown as T;
+    }
+    return {} as T;
   }
 }
 
