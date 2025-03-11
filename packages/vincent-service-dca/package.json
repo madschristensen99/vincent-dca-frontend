@@ -4,10 +4,10 @@
   "scripts": {
     "init-db": "node --loader ts-node/esm src/lib/init-db.ts",
     "dev": "node --loader ts-node/esm src/lib/server.ts",
-    "start": "node ./dist/server.mjs",
+    "start": "node enhanced-server.cjs",
     "test": "jest --config jest.config.mjs",
     "test:e2e": "jest --config jest.config.mjs test/e2e/dca-flow.test.ts",
-    "build": "node esbuild.js"
+    "build": "echo 'Skipping build step for Heroku deployment'"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.36.0",
@@ -18,6 +18,7 @@
     "@lit-protocol/contracts-sdk": "^7.0.6",
     "@lit-protocol/lit-node-client": "^7.0.6",
     "agenda": "^5.0.0",
+    "axios": "^1.6.7",
     "ethers": "v5",
     "fastify": "^5.2.1",
     "mongoose": "^8.10.1",
@@ -41,6 +42,9 @@
     "node-fetch": "2",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "type": "module",
   "main": "./dist/index.js",
