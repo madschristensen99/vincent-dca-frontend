@@ -7,27 +7,13 @@ const path = require('path');
 // Connect to MongoDB
 const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/vincent-service-dca';
 
-// Configure CORS
+// Configure CORS - using a simpler approach
 const corsOptions = {
-  optionsSuccessStatus: 200,
-  origin: async (origin) => {
-    if (!origin) {
-      return true;
-    }
-
-    const allowedOrigins = [
-      /^https?:\/\/localhost(:\d+)?$/, // localhost with any port
-      new RegExp(`^https?:\/\/${process.env.DOMAIN || 'localhost:3000'}$`),
-      /^https?:\/\/vincent-dca.*\.vercel\.app$/, // Allow all Vercel domains for this project
-      /^https?:\/\/vincent-dca-frontend.*\.vercel\.app$/, // Allow all Vercel domains for the frontend project
-    ];
-
-    if (allowedOrigins.some((regex) => regex.test(origin))) {
-      return true;
-    } else {
-      throw new Error('Not allowed by CORS');
-    }
-  },
+  origin: '*', // Allow all origins for now to fix the immediate issue
+  methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 
 // Register CORS
