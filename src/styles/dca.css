@@ -1,0 +1,356 @@
+/* DCA Management Styles */
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+  border: 1px solid #d0e6e2;
+}
+
+.dca-management {
+  max-width: 900px;
+  margin: 0 auto;
+  background-color: #f5f9f8;
+  padding: 24px;
+}
+
+.dca-management header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #d0e6e2;
+  padding-bottom: 16px;
+}
+
+.dca-management h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #2c7a7b;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.dashboard-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #e0f2ef;
+  color: #2c7a7b;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.dashboard-link:hover {
+  background-color: #d0e6e2;
+  text-decoration: underline;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tab-btn {
+  padding: 10px 16px;
+  border: none;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.tab-btn.active {
+  background-color: #2c7a7b;
+  color: white;
+}
+
+.tab-content {
+  padding: 16px 0;
+}
+
+.tab-content h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #444;
+}
+
+/* Form Styles */
+.dca-form {
+  max-width: 500px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #555;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.input-prefix, .input-suffix {
+  padding: 0 12px;
+  background-color: #f5f5f5;
+  color: #666;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.form-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  font-size: 16px;
+  outline: none;
+}
+
+.form-input.with-prefix {
+  padding-left: 8px;
+}
+
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: white;
+  outline: none;
+}
+
+.submit-btn {
+  background-color: #2c7a7b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-btn:hover {
+  background-color: #1d5354;
+}
+
+.submit-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Schedule List Styles */
+.schedules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedule-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #0070f3;
+  transition: all 0.2s ease;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background-color: #e6f7ee;
+  color: #0a8043;
+}
+
+.status-badge.inactive {
+  background-color: #feeae6;
+  color: #d93025;
+}
+
+.schedule-date {
+  font-size: 14px;
+  color: #666;
+}
+
+.schedule-details {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.schedule-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.deactivate {
+  background-color: #feeae6;
+  color: #d93025;
+}
+
+.toggle-btn.deactivate:hover {
+  background-color: #fcd0c9;
+}
+
+.toggle-btn.activate {
+  background-color: #e6f7ee;
+  color: #0a8043;
+}
+
+.toggle-btn.activate:hover {
+  background-color: #c9ebd7;
+}
+
+.simulate-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: #e0f2ef;
+  color: #2c7a7b;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.simulate-btn:hover {
+  background-color: #d0e6e2;
+}
+
+.simulate-btn:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Transaction List Styles */
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transaction-item {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.transaction-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.transaction-date {
+  font-size: 14px;
+  color: #666;
+}
+
+.transaction-link {
+  color: #0070f3;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.transaction-link:hover {
+  text-decoration: underline;
+}
+
+.transaction-details {
+  line-height: 1.6;
+}
+
+.status {
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.status.success {
+  color: #0a8043;
+}
+
+.status.failed {
+  color: #d93025;
+}
+
+.error-message {
+  color: #d93025;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.success-message {
+  background-color: #e6f7ee;
+  color: #0a8043;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.loading {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+}
+
+.error {
+  background-color: #feeae6;
+  color: #d93025;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.no-transactions, .no-dcas {
+  text-align: center;
+  padding: 32px;
+  color: #666;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
