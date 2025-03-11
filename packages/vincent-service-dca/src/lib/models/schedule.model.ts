@@ -1,12 +1,6 @@
 import mongoose from 'mongoose';
 
 const scheduleSchema = new mongoose.Schema({
-  scheduleId: {
-    type: String,
-    unique: true,
-    required: true,
-    default: () => new mongoose.Types.ObjectId().toString(),
-  },
   walletAddress: {
     type: String,
     required: true,
@@ -50,5 +44,15 @@ const scheduleSchema = new mongoose.Schema({
 // Create compound indices for common query patterns
 scheduleSchema.index({ walletAddress: 1, active: 1 });
 scheduleSchema.index({ walletAddress: 1, registeredAt: 1 });
+
+// Add a virtual getter for scheduleId that returns the _id as a string
+// This helps maintain backward compatibility with existing code
+scheduleSchema.virtual('scheduleId').get(function() {
+  return this._id.toString();
+});
+
+// Ensure virtuals are included when converting to JSON
+scheduleSchema.set('toJSON', { virtuals: true });
+scheduleSchema.set('toObject', { virtuals: true });
 
 export const Schedule = mongoose.model('Schedule', scheduleSchema);

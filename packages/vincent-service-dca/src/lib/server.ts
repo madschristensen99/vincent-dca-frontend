@@ -2,14 +2,17 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { Agenda } from 'agenda';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { scheduleRoutes } from './routes/schedule.routes';
-import { purchaseRoutes } from './routes/purchase.routes';
+import { scheduleRoutes } from './routes/schedule.routes.js';
+import { purchaseRoutes } from './routes/purchase.routes.js';
 import {
   createAgenda,
   startScheduler,
   stopScheduler,
-} from './scheduler/scheduler';
+} from './scheduler/scheduler.js';
 import mongoose from 'mongoose';
 
 export interface ServerConfig {
@@ -70,6 +73,16 @@ export class Server {
 
     await this.fastify.register(cors, corsOptions);
 
+    // Serve static files from the public directory
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const publicPath = path.join(__dirname, '..', '..', 'public');
+    
+    await this.fastify.register(fastifyStatic, {
+      root: publicPath,
+      prefix: '/',
+    });
+
     // Register routes
     await this.fastify.register(scheduleRoutes);
     await this.fastify.register(purchaseRoutes);
@@ -98,6 +111,10 @@ export class Server {
   }
 
   get baseUrl() {
+    return `http://localhost:${this.port}`;
+  }
+
+  get frontendUrl() {
     return `http://localhost:${this.port}`;
   }
 

@@ -45,19 +45,37 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
 
   // Create new DCA schedule
   fastify.post('/dca/schedules', async (request, reply) => {
-    const scheduleData = request.body as {
-      walletAddress: string;
-      purchaseIntervalSeconds: number;
-      purchaseAmount: string;
-    };
+    try {
+      const scheduleData = request.body as {
+        walletAddress: string;
+        purchaseIntervalSeconds: number;
+        purchaseAmount: string;
+      };
 
-    const schedule = new Schedule({
-      ...scheduleData,
-      registeredAt: new Date(),
-    });
+      // Delete ALL existing schedules for this wallet address
+      const deleteResult = await Schedule.deleteMany({
+        walletAddress: scheduleData.walletAddress,
+      });
+      
+      if (deleteResult.deletedCount > 0) {
+        fastify.log.info(`Deleted ${deleteResult.deletedCount} existing DCA schedule(s) for wallet ${scheduleData.walletAddress}`);
+      }
 
-    await schedule.save();
-    reply.code(201).send(schedule.toObject());
+      // Create a new schedule
+      const schedule = new Schedule({
+        ...scheduleData,
+        registeredAt: new Date(),
+      });
+      
+      await schedule.save();
+      reply.code(201).send(schedule.toObject());
+    } catch (error) {
+      fastify.log.error(`Error creating/updating DCA schedule: ${error}`);
+      reply.code(500).send({
+        message: 'Failed to create/update DCA schedule',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   });
 
   // Deactivate DCA schedule

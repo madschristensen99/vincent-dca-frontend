@@ -3,9 +3,9 @@ import esbuild from 'esbuild';
 const buildConfigs = [
   {
     bundle: true,
-    entryPoints: ['src/bin/server.ts'],
-    format: 'cjs',
-    outfile: 'dist/server.cjs',
+    entryPoints: ['src/lib/server.ts'],
+    format: 'esm',
+    outfile: 'dist/server.mjs',
     platform: 'node',
   },
 ];

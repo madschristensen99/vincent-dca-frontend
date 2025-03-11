@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vincent DCA Balance Check Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            background-color: #e7f3e8;
+        }
+        .error {
+            border-left: 4px solid #f44336;
+            background-color: #ffebee;
+        }
+        #logs {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .balance-status {
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .balance-ok {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .balance-low {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+        }
+        .balance-critical {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vincent DCA Balance Check Tester</h1>
+    
+    <div class="container">
+        <h2>Wallet Configuration</h2>
+        <div>
+            <label for="walletAddress">Wallet Address:</label>
+            <input type="text" id="walletAddress" value="0xE42534Ce546f54234d9DA51F6CA3c2eD1D682990">
+        </div>
+        
+        <div>
+            <label for="walletBalance">Simulate Wallet Balance (ETH):</label>
+            <input type="number" id="walletBalance" value="0.02" step="0.001" min="0">
+        </div>
+        
+        <div class="balance-status" id="balanceStatus">
+            Balance status will appear here
+        </div>
+        
+        <button id="checkBalance">Check Balance</button>
+    </div>
+    
+    <div class="container">
+        <h2>Create DCA Schedule</h2>
+        <div>
+            <label for="purchaseAmount">Purchase Amount (ETH):</label>
+            <input type="number" id="purchaseAmount" value="0.001" step="0.0001" min="0">
+        </div>
+        
+        <div>
+            <label for="purchaseInterval">Purchase Interval (seconds):</label>
+            <input type="number" id="purchaseInterval" value="60" min="10">
+        </div>
+        
+        <button id="createSchedule">Create Schedule</button>
+    </div>
+    
+    <div class="container">
+        <h2>Execute Swap</h2>
+        <button id="executeSwap">Execute Swap</button>
+    </div>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <h3>Logs</h3>
+    <div id="logs"></div>
+    
+    <script>
+        // Mock API for testing
+        const API = {
+            checkBalance: async (address, simulatedBalance) => {
+                // In real implementation, this would call your backend
+                // For testing, we'll use the simulated balance
+                const balance = parseFloat(simulatedBalance);
+                const minRequired = 0.01;
+                
+                return {
+                    address,
+                    balance,
+                    minRequired,
+                    sufficient: balance >= minRequired
+                };
+            },
+            
+            createSchedule: async (address, amount, interval) => {
+                // Mock creating a schedule
+                const scheduleId = 'schedule_' + Math.random().toString(36).substring(2, 9);
+                
+                return {
+                    scheduleId,
+                    walletAddress: address,
+                    purchaseAmount: amount,
+                    purchaseIntervalSeconds: interval,
+                    active: true,
+                    createdAt: new Date().toISOString()
+                };
+            },
+            
+            executeSwap: async (address, amount, simulatedBalance) => {
+                // Mock executing a swap with balance check
+                const balance = parseFloat(simulatedBalance);
+                const minRequired = 0.01;
+                
+                if (balance < minRequired) {
+                    return {
+                        success: false,
+                        error: `Insufficient balance to execute swap: ${balance} ETH. Minimum required: ${minRequired} ETH.`
+                    };
+                }
+                
+                // Mock successful swap
+                return {
+                    success: true,
+                    txHash: '0x' + Math.random().toString(36).substring(2, 15),
+                    purchaseAmount: amount,
+                    walletAddress: address,
+                    timestamp: new Date().toISOString()
+                };
+            }
+        };
+        
+        // UI Elements
+        const walletAddressInput = document.getElementById('walletAddress');
+        const walletBalanceInput = document.getElementById('walletBalance');
+        const balanceStatusDiv = document.getElementById('balanceStatus');
+        const purchaseAmountInput = document.getElementById('purchaseAmount');
+        const purchaseIntervalInput = document.getElementById('purchaseInterval');
+        const resultDiv = document.getElementById('result');
+        const logsDiv = document.getElementById('logs');
+        
+        // Buttons
+        const checkBalanceBtn = document.getElementById('checkBalance');
+        const createScheduleBtn = document.getElementById('createSchedule');
+        const executeSwapBtn = document.getElementById('executeSwap');
+        
+        // Add log entry
+        function addLog(message, isError = false) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry' + (isError ? ' error' : '');
+            logEntry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        // Show result
+        function showResult(message, isError = false) {
+            resultDiv.textContent = message;
+            resultDiv.style.display = 'block';
+            if (isError) {
+                resultDiv.classList.add('error');
+            } else {
+                resultDiv.classList.remove('error');
+            }
+        }
+        
+        // Update balance status UI
+        function updateBalanceStatus(balance, minRequired) {
+            const balanceNum = parseFloat(balance);
+            balanceStatusDiv.textContent = `Current Balance: ${balanceNum} ETH (Minimum Required: ${minRequired} ETH)`;
+            
+            if (balanceNum < minRequired) {
+                balanceStatusDiv.className = 'balance-status balance-critical';
+            } else if (balanceNum < minRequired * 2) {
+                balanceStatusDiv.className = 'balance-status balance-low';
+            } else {
+                balanceStatusDiv.className = 'balance-status balance-ok';
+            }
+        }
+        
+        // Check Balance
+        checkBalanceBtn.addEventListener('click', async () => {
+            const address = walletAddressInput.value;
+            const balance = walletBalanceInput.value;
+            
+            if (!address) {
+                showResult('Please enter a wallet address', true);
+                return;
+            }
+            
+            try {
+                addLog(`Checking balance for ${address}...`);
+                const result = await API.checkBalance(address, balance);
+                
+                updateBalanceStatus(result.balance, result.minRequired);
+                
+                if (result.sufficient) {
+                    addLog(`Balance check passed: ${result.balance} ETH is sufficient`);
+                } else {
+                    addLog(`Balance check failed: ${result.balance} ETH is insufficient (min: ${result.minRequired} ETH)`, true);
+                }
+            } catch (error) {
+                addLog(`Error checking balance: ${error.message}`, true);
+                showResult(`Error: ${error.message}`, true);
+            }
+        });
+        
+        // Create Schedule
+        createScheduleBtn.addEventListener('click', async () => {
+            const address = walletAddressInput.value;
+            const amount = purchaseAmountInput.value;
+            const interval = purchaseIntervalInput.value;
+            
+            if (!address || !amount || !interval) {
+                showResult('Please fill in all fields', true);
+                return;
+            }
+            
+            try {
+                addLog(`Creating schedule for ${address} with amount ${amount} ETH every ${interval} seconds...`);
+                const result = await API.createSchedule(address, amount, interval);
+                
+                addLog(`Schedule created with ID: ${result.scheduleId}`);
+                showResult(`Schedule created successfully! ID: ${result.scheduleId}`);
+            } catch (error) {
+                addLog(`Error creating schedule: ${error.message}`, true);
+                showResult(`Error: ${error.message}`, true);
+            }
+        });
+        
+        // Execute Swap
+        executeSwapBtn.addEventListener('click', async () => {
+            const address = walletAddressInput.value;
+            const amount = purchaseAmountInput.value;
+            const balance = walletBalanceInput.value;
+            
+            if (!address || !amount) {
+                showResult('Please fill in all fields', true);
+                return;
+            }
+            
+            try {
+                addLog(`Executing swap for ${address} with amount ${amount} ETH...`);
+                const result = await API.executeSwap(address, amount, balance);
+                
+                if (result.success) {
+                    addLog(`Swap executed successfully with TX hash: ${result.txHash}`);
+                    showResult(`Swap executed successfully! TX Hash: ${result.txHash}`);
+                } else {
+                    addLog(`Swap failed: ${result.error}`, true);
+                    showResult(`Swap failed: ${result.error}`, true);
+                }
+            } catch (error) {
+                addLog(`Error executing swap: ${error.message}`, true);
+                showResult(`Error: ${error.message}`, true);
+            }
+        });
+        
+        // Initialize
+        updateBalanceStatus(walletBalanceInput.value, 0.01);
+        addLog('Balance check tester initialized');
+    </script>
+</body>
+</html>
