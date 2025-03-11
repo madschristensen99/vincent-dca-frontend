@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { RegisterDCA } from './RegisterDCA';
 import { ActiveDCAs } from './ActiveDCAs';
+import api from '../utils/api';
 
 // Base Mainnet Etherscan API
 const BASE_API_URL = 'https://api.basescan.org/api';
@@ -127,40 +128,37 @@ export function DCAManagementView({ address }: DCAManagementViewProps) {
     setIsLoading(true);
     setError(null);
     
-    // First try to fetch from our backend
     try {
-      const response = await fetch(`${BACKEND_API_URL}/dca/transactions/${address}`);
+      // First try to fetch from our backend
+      try {
+        const transactions = await api.get(`/dca/transactions/${address}`);
+        if (transactions && transactions.length > 0) {
+          // If we got DCA transactions, we don't need to fetch from Etherscan
+          setDcaTransactions(transactions);
+          setTransactions([]);
+          return;
+        }
+      } catch (err) {
+        console.error('Error fetching DCA transactions:', err);
+      }
       
-      if (response.ok) {
+      // If no DCA transactions, try to fetch from Etherscan
+      try {
+        const response = await fetch(
+          `${BASE_API_URL}?module=account&action=txlist&address=${address}&sort=desc&apikey=${API_KEY}`
+        );
         const data = await response.json();
-        setDcaTransactions(data);
-        // If we got DCA transactions, we don't need to fetch from Etherscan
-        setIsLoading(false);
-        return;
-      } else if (response.status !== 404) {
-        // Only log non-404 errors (404 is expected when no transactions exist)
-        console.error('Error fetching DCA transactions:', await response.text());
-      }
-    } catch (err) {
-      console.error('Error fetching from backend:', err);
-      // Continue to try Etherscan as fallback
-    }
-    
-    // Fallback to Etherscan
-    try {
-      const response = await fetch(
-        `${BASE_API_URL}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${API_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data.status === '1') {
+        
+        if (data.status !== '1') {
+          setError(data.message || 'Failed to fetch transactions. Please try again.');
+          return;
+        }
+        
         setTransactions(data.result || []);
-      } else {
-        setError(data.message || 'Failed to fetch transactions. Please try again.');
+      } catch (err) {
+        console.error('Error fetching from Etherscan:', err);
+        setError('Failed to fetch transactions. Please try again.');
       }
-    } catch (err) {
-      setError('Network error. Please check your connection and try again.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -177,26 +175,21 @@ export function DCAManagementView({ address }: DCAManagementViewProps) {
     setError(null);
     setSuccessMessage(null);
     
-    // Convert frequency to seconds
     let purchaseIntervalSeconds: number;
+    
+    // Convert frequency to seconds
     switch (frequency) {
-      case 'test':
-        purchaseIntervalSeconds = 10; // 10 seconds for testing
-        break;
-      case 'minute':
-        purchaseIntervalSeconds = 60; // 1 minute
-        break;
       case 'hourly':
-        purchaseIntervalSeconds = 60 * 60; // 1 hour
+        purchaseIntervalSeconds = 60 * 60;
         break;
       case 'daily':
-        purchaseIntervalSeconds = 60 * 60 * 24; // 24 hours
+        purchaseIntervalSeconds = 60 * 60 * 24;
         break;
       case 'weekly':
-        purchaseIntervalSeconds = 60 * 60 * 24 * 7; // 7 days
+        purchaseIntervalSeconds = 60 * 60 * 24 * 7;
         break;
       case 'monthly':
-        purchaseIntervalSeconds = 60 * 60 * 24 * 30; // 30 days
+        purchaseIntervalSeconds = 60 * 60 * 24 * 30;
         break;
       default:
         purchaseIntervalSeconds = 60 * 60 * 24; // Default to daily
@@ -206,41 +199,22 @@ export function DCAManagementView({ address }: DCAManagementViewProps) {
       // Format the amount as a string with a decimal point
       const formattedAmount = amount.toString();
       
-      const response = await fetch(`${BACKEND_API_URL}/dca/schedules`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: address,
-          purchaseIntervalSeconds,
-          purchaseAmount: formattedAmount,
-          active: true,
-        }),
-      });
+      const data = {
+        walletAddress: address,
+        purchaseIntervalSeconds,
+        purchaseAmount: formattedAmount,
+        active: true,
+      };
       
-      if (response.ok) {
-        const data = await response.json();
-        setSuccessMessage(`Successfully created DCA schedule with ID: ${data.scheduleId}`);
-        // Switch to the view tab to show the newly created schedule
-        setActiveTab('view');
-      } else {
-        const errorText = await response.text();
-        let errorMessage = 'Failed to create DCA schedule';
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // If we can't parse the error as JSON, use the raw text
-          errorMessage = errorText || errorMessage;
-        }
-        
-        setError(errorMessage);
-      }
-    } catch (err) {
-      setError('Network error. Please check your connection and try again.');
-      console.error(err);
+      await api.post('/dca/schedules', data);
+      
+      // Refresh the schedules
+      setSuccessMessage(`Successfully created DCA schedule`);
+      // Switch to the view tab to show the newly created schedule
+      setActiveTab('view');
+    } catch (error) {
+      console.error('Error creating DCA schedule:', error);
+      setError('Failed to create DCA schedule. Please try again.');
     } finally {
       setIsLoading(false);
     }

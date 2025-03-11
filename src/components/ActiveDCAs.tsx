@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import api from '../utils/api';
 
 // Define the backend API URL
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
@@ -24,32 +25,22 @@ export function ActiveDCAs({ address }: ActiveDCAsProps) {
   const [simulationLoading, setSimulationLoading] = useState<string | null>(null);
   const [simulationSuccess, setSimulationSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${BACKEND_API_URL}/dca/schedules/${address}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          setSchedules(data);
-        } else {
-          // If 404, it's expected when no schedules exist
-          if (response.status === 404) {
-            setSchedules([]);
-          } else {
-            setError('Failed to fetch schedules');
-            console.error('Error fetching schedules:', await response.text());
-          }
-        }
-      } catch (err) {
-        setError('Network error while fetching schedules');
-        console.error('Error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchSchedules = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const schedules = await api.get(`/dca/schedules/${address}`);
+      setSchedules(schedules);
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
+      setError('Failed to fetch schedules');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchSchedules();
   }, [address]);
 
@@ -59,24 +50,18 @@ export function ActiveDCAs({ address }: ActiveDCAsProps) {
         ? `/dca/schedules/${scheduleId}/deactivate` 
         : `/dca/schedules/${scheduleId}/activate`;
         
-      const response = await fetch(`${BACKEND_API_URL}${endpoint}`, {
-        method: 'PATCH',
-      });
+      await api.patch(endpoint, {});
       
-      if (response.ok) {
-        // Update the local state to reflect the change
-        setSchedules(prevSchedules => 
-          prevSchedules.map(schedule => 
-            (schedule._id === scheduleId || schedule.scheduleId === scheduleId)
-              ? { ...schedule, active: !currentStatus } 
-              : schedule
-          )
-        );
-      } else {
-        setError('Failed to update schedule status');
-      }
+      // Update the local state to reflect the change
+      setSchedules(prevSchedules => 
+        prevSchedules.map(schedule => 
+          (schedule._id === scheduleId || schedule.scheduleId === scheduleId)
+            ? { ...schedule, active: !currentStatus } 
+            : schedule
+        )
+      );
     } catch (err) {
-      setError('Network error while updating schedule');
+      setError('Failed to update schedule status');
       console.error('Error:', err);
     }
   };
@@ -87,31 +72,20 @@ export function ActiveDCAs({ address }: ActiveDCAsProps) {
     setError(null);
     
     try {
-      const response = await fetch(`${BACKEND_API_URL}/dca/simulate/transaction`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          scheduleId,
-          walletAddress: address,
-          amount,
-          symbol: 'ETH',
-          name: 'Ethereum'
-        }),
-      });
+      const data = {
+        scheduleId,
+        walletAddress: address,
+        amount,
+        symbol: 'ETH',
+        name: 'Ethereum'
+      };
       
-      if (response.ok) {
-        const data = await response.json();
-        setSimulationSuccess(`Successfully simulated transaction for schedule ${scheduleId}`);
-        console.log('Simulated transaction:', data);
-      } else {
-        const errorText = await response.text();
-        setError(`Failed to simulate transaction: ${errorText}`);
-      }
-    } catch (err) {
-      setError('Network error while simulating transaction');
-      console.error('Error:', err);
+      const result = await api.post('/dca/simulate/transaction', data);
+      setSimulationSuccess(`Successfully simulated transaction for schedule ${scheduleId}`);
+      console.log('Simulated transaction:', result);
+    } catch (error) {
+      console.error('Error simulating transaction:', error);
+      setError(`Failed to simulate transaction`);
     } finally {
       setSimulationLoading(null);
     }
