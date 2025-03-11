@@ -7,17 +7,37 @@ const path = require('path');
 // Connect to MongoDB
 const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/vincent-service-dca';
 
-// Configure CORS - using a simpler approach
+// Configure CORS with explicit Vercel domain
 const corsOptions = {
-  origin: '*', // Allow all origins for now to fix the immediate issue
-  methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
+  origin: ['https://vincent-dca-hl6j.vercel.app', 'http://localhost:3001'],
+  methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true,
-  optionsSuccessStatus: 200
+  maxAge: 86400, // 24 hours in seconds
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
-// Register CORS
+// Register CORS - must be registered before routes
 fastify.register(cors, corsOptions);
+
+// Add a hook to manually set CORS headers for all responses
+fastify.addHook('onRequest', (request, reply, done) => {
+  // Set CORS headers for all requests
+  reply.header('Access-Control-Allow-Origin', request.headers.origin || '*');
+  reply.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS, PATCH');
+  reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  reply.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (request.method === 'OPTIONS') {
+    reply.code(204).send();
+    return;
+  }
+  
+  done();
+});
 
 // Define models
 // Schedule Model
