@@ -1,41 +1,12 @@
-// API utility functions with no-cors mode for CORS handling
+// API utility functions for Vincent DCA
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
 
 interface FetchOptions extends RequestInit {
   body?: any;
 }
 
-// Define interfaces for our data structures
-interface Schedule {
-  walletAddress: string;
-  tokenIn: string;
-  tokenOut: string;
-  amount: string;
-  frequency: string;
-  active: boolean;
-  registeredAt?: string;
-  _id?: string;
-}
-
-interface Transaction {
-  walletAddress: string;
-  tokenIn: string;
-  tokenOut: string;
-  amount: string;
-  price?: string;
-  timestamp?: string;
-  success: boolean;
-  _id?: string;
-}
-
-// Mock data for schedules to use when API calls fail
-const mockScheduleData: Schedule[] = [];
-
-// Mock data for transactions to use when API calls fail
-const mockTransactionData: Transaction[] = [];
-
 /**
- * Wrapper for fetch that handles CORS issues using no-cors mode
+ * Wrapper for fetch that handles API requests to the backend
  */
 export async function fetchApi<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   // Determine if we need to use the full URL or just the endpoint
@@ -57,63 +28,30 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   }
 
   try {
-    // Use no-cors mode to bypass CORS restrictions
+    // Make the request
     const response = await fetch(url, {
       ...options,
       headers,
       body,
-      mode: 'no-cors',
-      credentials: 'omit', // Don't send cookies with no-cors
+      credentials: 'include', // Include cookies for cross-origin requests
     });
 
-    // Since we're using no-cors mode, we can't actually read the response
-    // Return appropriate mock data based on the endpoint
-    if (endpoint.includes('/schedules')) {
-      if (options.method === 'POST' && body) {
-        // For POST requests to /schedules, create a mock schedule from the request data
-        console.log('Schedule creation attempted. Using mock response.');
-        try {
-          const scheduleData = JSON.parse(body as string) as Schedule;
-          const newSchedule = {
-            ...scheduleData,
-            _id: `mock-${Date.now()}`,
-            registeredAt: new Date().toISOString(),
-            active: true
-          };
-          mockScheduleData.push(newSchedule);
-          return { success: true, message: 'Schedule created successfully', schedule: newSchedule } as unknown as T;
-        } catch (e) {
-          console.error('Failed to parse schedule data:', e);
-        }
-      }
-      console.log('Schedule data requested. Using mock data.');
-      return mockScheduleData as unknown as T;
+    // Handle non-OK responses
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `API request failed with status ${response.status}`);
+    }
+
+    // Parse response based on content type
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json() as T;
     }
     
-    if (endpoint.includes('/transactions')) {
-      console.log('Transaction data requested. Using mock data.');
-      return mockTransactionData as unknown as T;
-    }
-    
-    if (endpoint.includes('/health')) {
-      return { status: 'ok' } as unknown as T;
-    }
-    
-    // Default empty response
-    return {} as T;
+    return await response.text() as unknown as T;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
-    
-    // Return appropriate mock data even on error
-    if (endpoint.includes('/schedules')) {
-      return mockScheduleData as unknown as T;
-    }
-    
-    if (endpoint.includes('/transactions')) {
-      return mockTransactionData as unknown as T;
-    }
-    
-    return {} as T;
+    throw error;
   }
 }
 
@@ -124,10 +62,8 @@ export const api = {
     fetchApi<T>(endpoint, { ...options, method: 'GET' }),
   
   // POST request
-  post: <T = any>(endpoint: string, data: any, options: FetchOptions = {}) => {
-    console.log('POST data:', data);
-    return fetchApi<T>(endpoint, { ...options, method: 'POST', body: data });
-  },
+  post: <T = any>(endpoint: string, data: any, options: FetchOptions = {}) => 
+    fetchApi<T>(endpoint, { ...options, method: 'POST', body: data }),
   
   // PUT request
   put: <T = any>(endpoint: string, data: any, options: FetchOptions = {}) => 
