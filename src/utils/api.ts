@@ -1,7 +1,7 @@
 // API utility functions with CORS handling
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
-// CORS Proxy URL - use a public CORS proxy to bypass CORS restrictions
-const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+// CORS Proxy URL - use a more reliable CORS proxy
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 interface FetchOptions extends RequestInit {
   body?: any;
@@ -15,13 +15,14 @@ export async function fetchApi(endpoint: string, options: FetchOptions = {}) {
   const baseUrl = endpoint.startsWith('http') ? endpoint : `${BACKEND_API_URL}${endpoint}`;
   
   // Use CORS proxy for all API calls to the backend
-  const url = baseUrl.includes(BACKEND_API_URL) ? `${CORS_PROXY}${baseUrl}` : baseUrl;
+  const url = baseUrl.includes(BACKEND_API_URL) 
+    ? `${CORS_PROXY}${encodeURIComponent(baseUrl)}` 
+    : baseUrl;
   
   // Prepare headers with CORS support
   const headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest', // Required by some CORS proxies
     ...options.headers,
   };
 
