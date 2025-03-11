@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   env: {
-    NEXT_PUBLIC_BACKEND_URL: 'https://vincent-dca-service.herokuapp.com',
+    NEXT_PUBLIC_BACKEND_URL: 'https://vincent-dca-4e2200eeaaa1.herokuapp.com',
   },
 }
 

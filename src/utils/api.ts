@@ -1,22 +1,18 @@
 // API utility functions for Vincent DCA
-// Use the local API proxy to avoid CORS issues
-const API_PROXY = '/api/proxy';
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-4e2200eeaaa1.herokuapp.com';
 
 interface FetchOptions extends RequestInit {
   body?: any;
 }
 
 /**
- * Wrapper for fetch that uses the Next.js API proxy to communicate with the backend
+ * Wrapper for fetch that handles API requests to the backend
  */
 export async function fetchApi<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
-  // Remove any leading slash from the endpoint
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  // Determine if we need to use the full URL or just the endpoint
+  const url = endpoint.startsWith('http') ? endpoint : `${BACKEND_API_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   
-  // Use our local API proxy
-  const url = `${API_PROXY}/${cleanEndpoint}`;
-  
-  console.log(`Fetching via proxy: ${url}`);
+  console.log(`Fetching from: ${url}`);
   
   // Prepare headers
   const headers = {
@@ -32,19 +28,21 @@ export async function fetchApi<T = any>(endpoint: string, options: FetchOptions 
   }
 
   try {
+    // Make the request
     const response = await fetch(url, {
       ...options,
       headers,
       body,
+      mode: 'cors',
     });
 
-    // Check if the response is ok
+    // Handle non-OK responses
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || `API request failed with status ${response.status}`);
     }
 
-    // Parse JSON response
+    // Parse response based on content type
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       return await response.json() as T;
