@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build outputs
+dist/
+build/
+.cache/
+
+# Testing files
+coverage/
+
+# Temporary files
+tmp/
+*.tmp
+*.temp
+
+# Logs
+logs/
+*.log
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Verification scripts (optional, but these are just for testing)
+verify-atlas.js
+verify-atlas-ui.cjs
+test-mongo-connection.cjs

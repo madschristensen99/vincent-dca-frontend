@@ -8,11 +8,7 @@ import { fileURLToPath } from 'url';
 
 import { scheduleRoutes } from './routes/schedule.routes.js';
 import { purchaseRoutes } from './routes/purchase.routes.js';
-import {
-  createAgenda,
-  startScheduler,
-  stopScheduler,
-} from './scheduler/scheduler.js';
+import { createAgenda, stopScheduler } from './scheduler/scheduler.js';
 import mongoose from 'mongoose';
 
 export interface ServerConfig {
@@ -69,7 +65,34 @@ export class Server {
 
   async start() {
     // Wait for agenda to be ready and start the scheduler
-    await startScheduler();
+    if (this.agendaInstance) {
+      await this.agendaInstance.start();
+    }
+
+    // Connect to MongoDB
+    try {
+      await mongoose.connect(this.dbUri);
+      console.log(`Connected to MongoDB at: ${this.dbUri}`);
+      
+      // Log database details to verify Atlas connection
+      if (mongoose.connection && mongoose.connection.db) {
+        try {
+          const adminDb = mongoose.connection.db.admin();
+          const serverInfo = await adminDb.serverInfo();
+          console.log('MongoDB Server Info:', {
+            version: serverInfo.version,
+            host: mongoose.connection.host,
+            name: mongoose.connection.name,
+            isAtlas: this.dbUri.includes('mongodb+srv')
+          });
+        } catch (error) {
+          console.log('Could not get detailed server info, but connected to MongoDB');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to connect to MongoDB:', error);
+      throw error;
+    }
 
     await this.fastify.register(cors, corsOptions);
 
@@ -86,10 +109,6 @@ export class Server {
     // Register routes
     await this.fastify.register(scheduleRoutes);
     await this.fastify.register(purchaseRoutes);
-
-    await mongoose.connect(this.dbUri).then(() => {
-      this.fastify.log.info('Mongoose connected to MongoDB');
-    });
 
     // Start server
     try {
