@@ -179,6 +179,12 @@ export function DCAManagementView({ address }: DCAManagementViewProps) {
     
     // Convert frequency to seconds
     switch (frequency) {
+      case 'test':
+        purchaseIntervalSeconds = 10; // 10 seconds for testing
+        break;
+      case 'minute':
+        purchaseIntervalSeconds = 60; // 1 minute
+        break;
       case 'hourly':
         purchaseIntervalSeconds = 60 * 60;
         break;
