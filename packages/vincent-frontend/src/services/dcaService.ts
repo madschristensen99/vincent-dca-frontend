@@ -29,7 +29,7 @@ export class DCAService {
   private dexRouterAddress: string;
   
   constructor(
-    backendUrl: string = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001',
+    backendUrl: string = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000',
     dexRouterAddress: string = '0x4200000000000000000000000000000000000006' // Default to Base Mainnet WETH
   ) {
     this.backendUrl = backendUrl;
