@@ -17,7 +17,7 @@ const BASE_API_URL = 'https://api.basescan.org/api';
 const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
 
 // Define the backend API URL
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+import { BACKEND_API_URL } from '../config';
 
 interface Transaction {
   hash: string;

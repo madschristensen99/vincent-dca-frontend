@@ -13,9 +13,7 @@ import { dcaService } from '../services/dcaService';
 import type { DCAExecutionResult, DCASchedule } from '../services/dcaService';
 import { dexService } from '../services/dexService';
 import styles from '../styles/ActiveDCAs.module.css';
-
-// Define the backend API URL
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+import { BACKEND_API_URL } from '../config';
 
 // Define token information interface
 interface TokenInfo {
@@ -313,13 +311,13 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
       
       return result;
     } catch (error) {
-      console.error('Error simulating transaction:', error);
-      setError(`Error simulating transaction: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
-    } finally {
-      setSimulatingTransaction(null);
-    }
-  };
+    console.error('Error simulating transaction:', error);
+    setError(`Error simulating transaction: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  } finally {
+    setSimulatingTransaction(null);
+  }
+};
 
   // Fetch token information from a DEX or token list API
   const fetchTokenInfo = async (tokenAddress: string) => {
