@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   distDir: '.next',
   env: {
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com',
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000',
   },
   // Ensure Next.js knows this is a standalone application
   output: 'standalone',

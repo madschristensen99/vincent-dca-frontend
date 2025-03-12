@@ -2,12 +2,15 @@ import mongoose from 'mongoose';
 
 async function initializeDatabase() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/vincent-service-dca');
+    const dbUri = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/vincent-service-dca';
+    await mongoose.connect(dbUri);
     console.log('Successfully connected to MongoDB');
 
-    // Drop the existing database
-    await mongoose.connection.dropDatabase();
-    console.log('Existing database dropped');
+    // Only drop the database in development mode
+    if (process.env.NODE_ENV !== 'production') {
+      await mongoose.connection.dropDatabase();
+      console.log('Existing database dropped (development mode only)');
+    }
 
     await mongoose.disconnect();
     console.log('Database initialization complete');

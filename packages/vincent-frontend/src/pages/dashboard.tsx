@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+// Define the backend API URL
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
 interface Log {
   timestamp: string;
   type: string;
@@ -25,14 +28,14 @@ export default function Dashboard() {
       setLoading(true);
       
       // Fetch server status
-      const statusResponse = await fetch('http://localhost:3000/health');
+      const statusResponse = await fetch(`${BACKEND_API_URL}/health`);
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
         setServerStatus(statusData);
       }
       
       // Fetch logs
-      const logsResponse = await fetch('http://localhost:3000/admin/logs');
+      const logsResponse = await fetch(`${BACKEND_API_URL}/admin/logs`);
       if (logsResponse.ok) {
         const logsData = await logsResponse.json();
         setLogs(logsData.logs || []);

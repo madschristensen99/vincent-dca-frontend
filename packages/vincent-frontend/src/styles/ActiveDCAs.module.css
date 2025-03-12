@@ -1,0 +1,231 @@
+/* ActiveDCAs.module.css */
+
+.dca_schedules_container {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.dca_schedules_title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  color: #2d3748;
+}
+
+.dca_schedules_table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dca_schedules_table thead {
+  background-color: #f7fafc;
+}
+
+.dca_schedules_table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #4a5568;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dca_schedules_table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.dca_schedules_table tr:last-child td {
+  border-bottom: none;
+}
+
+.token_cell {
+  display: flex;
+  align-items: center;
+}
+
+.token_logo {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+}
+
+.token_symbol {
+  font-weight: 500;
+}
+
+.status_badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+}
+
+.status_badge_active {
+  background-color: #c6f6d5;
+  color: #2f855a;
+}
+
+.status_badge_inactive {
+  background-color: #fed7d7;
+  color: #c53030;
+}
+
+.action_button {
+  padding: 0.5rem 0.75rem;
+  margin-right: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: white;
+}
+
+.action_button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.action_button_deactivate {
+  background-color: #e53e3e;
+}
+
+.action_button_deactivate:hover:not(:disabled) {
+  background-color: #c53030;
+}
+
+.action_button_activate {
+  background-color: #38a169;
+}
+
+.action_button_activate:hover:not(:disabled) {
+  background-color: #2f855a;
+}
+
+.action_button_execute {
+  background-color: #3182ce;
+}
+
+.action_button_execute:hover:not(:disabled) {
+  background-color: #2b6cb0;
+}
+
+.action_button_simulate {
+  background-color: #718096;
+}
+
+.action_button_simulate:hover:not(:disabled) {
+  background-color: #4a5568;
+}
+
+.loading_message {
+  color: #718096;
+  text-align: center;
+  padding: 1rem;
+}
+
+.error_message {
+  color: #e53e3e;
+  margin-bottom: 1rem;
+}
+
+.empty_message {
+  color: #718096;
+  text-align: center;
+  padding: 2rem;
+}
+
+.overflow_auto {
+  overflow-x: auto;
+}
+
+/* Simulation Modal Styles */
+.modal_overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal_container {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  max-width: 28rem;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal_title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.modal_content {
+  margin-bottom: 1rem;
+}
+
+.result_row {
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.result_label {
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.result_value {
+  font-weight: 400;
+  color: #2d3748;
+}
+
+.modal_note {
+  font-size: 0.75rem;
+  color: #718096;
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+.modal_actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.close_button {
+  padding: 0.5rem 1rem;
+  background-color: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.close_button:hover {
+  background-color: #2b6cb0;
+}

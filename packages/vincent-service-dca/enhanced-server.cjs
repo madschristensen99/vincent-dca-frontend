@@ -12,7 +12,8 @@ const corsOptions = {
   origin: [
     'https://vincent-dca-hl6j.vercel.app', 
     'http://localhost:3001',
-    'https://vincent-dca-frontend-e9492df4e8c3.herokuapp.com'
+    'https://vincent-dca-frontend-e9492df4e8c3.herokuapp.com',
+    'https://vincent-dca-frontend.herokuapp.com'
   ],
   methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
