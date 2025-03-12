@@ -19,6 +19,7 @@
     "@lit-protocol/lit-node-client": "^7.0.6",
     "agenda": "^5.0.0",
     "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
     "ethers": "v5",
     "fastify": "^5.2.1",
     "mongoose": "^8.10.1",
@@ -44,7 +45,7 @@
     "tsx": "^4.19.3"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18.0.0"
   },
   "type": "module",
   "main": "./dist/index.js",

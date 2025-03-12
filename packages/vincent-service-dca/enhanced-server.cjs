@@ -4,8 +4,16 @@ const mongoose = require('mongoose');
 const cors = require('@fastify/cors');
 const path = require('path');
 
+// Load environment variables if dotenv is available
+try {
+  require('dotenv').config();
+} catch (e) {
+  console.log('dotenv not available, using process.env');
+}
+
 // Connect to MongoDB
 const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/vincent-service-dca';
+console.log(`Using MongoDB URI: ${dbUri.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://user:***@')}`);
 
 // Configure CORS with explicit domains
 const corsOptions = {
@@ -544,9 +552,17 @@ fastify.get('/admin/logs', async (request, reply) => {
 async function start() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(dbUri);
-    console.log('Connected to MongoDB');
-
+    console.log('Attempting to connect to MongoDB...');
+    await mongoose.connect(dbUri, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+    });
+    console.log('Successfully connected to MongoDB');
+    
+    // Log database information
+    const dbName = mongoose.connection.name;
+    console.log(`Connected to database: ${dbName}`);
+    
     // Register routes
     await registerScheduleRoutes();
     await registerPurchaseRoutes();
@@ -566,6 +582,15 @@ async function start() {
     startDCAExecutionProcess();
   } catch (err) {
     console.error('Error starting server:', err);
+    
+    if (err.name === 'MongoServerSelectionError') {
+      console.error('MongoDB connection error details:', {
+        message: err.message,
+        reason: err.reason ? err.reason.toString() : 'Unknown',
+        hosts: err.topology ? Object.keys(err.topology.s.servers).join(', ') : 'Unknown'
+      });
+    }
+    
     process.exit(1);
   }
 }

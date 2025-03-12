@@ -1,0 +1,27 @@
+{
+  "name": "Vincent DCA Service",
+  "description": "Backend service for Vincent DCA application",
+  "repository": "https://github.com/madschristensen99/vincent-dca",
+  "keywords": ["node", "fastify", "mongodb", "dca", "crypto"],
+  "env": {
+    "MONGODB_URI": {
+      "description": "MongoDB Atlas connection string",
+      "required": true
+    },
+    "NODE_ENV": {
+      "description": "Node environment (development, production)",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
