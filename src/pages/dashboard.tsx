@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import api from '../utils/api';
 import Link from 'next/link';
 
 // Define the backend API URL
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://vincent-dca-service.herokuapp.com';
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
 interface Log {
   timestamp: string;
@@ -25,20 +24,27 @@ export default function Dashboard() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   
   const fetchLogs = async () => {
-    setLoading(true);
-    setError(null);
-    
     try {
+      setLoading(true);
+      
       // Fetch server status
-      const status = await api.get('/health');
-      setServerStatus(status);
+      const statusResponse = await fetch(`${BACKEND_API_URL}/health`);
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        setServerStatus(statusData);
+      }
       
       // Fetch logs
-      const logs = await api.get('/admin/logs');
-      setLogs(logs.logs || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to fetch logs');
+      const logsResponse = await fetch(`${BACKEND_API_URL}/admin/logs`);
+      if (logsResponse.ok) {
+        const logsData = await logsResponse.json();
+        setLogs(logsData.logs || []);
+      } else {
+        setError('Failed to fetch logs');
+      }
+    } catch (err) {
+      setError('Network error while fetching data');
+      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
@@ -47,12 +53,16 @@ export default function Dashboard() {
   useEffect(() => {
     fetchLogs();
     
-    // Set up polling interval
-    const interval = setInterval(fetchLogs, 5000); // Refresh every 5 seconds
+    // Set up auto-refresh if enabled
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefresh) {
+      interval = setInterval(fetchLogs, 5000); // Refresh every 5 seconds
+    }
     
-    // Clean up interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh]);
   
   const getLogTypeClass = (type: string) => {
     switch (type.toUpperCase()) {
