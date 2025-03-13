@@ -109,27 +109,30 @@ export default function Dashboard() {
         {status && (
           <div className="status-card">
             <div className="status-header">
-              <h3>{status.service}</h3>
-              <span className={`status-badge ${status.status}`}>
-                {status.status}
+              <h3>{status.service || 'Service'}</h3>
+              <span className={`status-badge ${status.status || 'unknown'}`}>
+                {status.status || 'Unknown'}
               </span>
             </div>
             <div className="status-details">
-              <p>Last updated: {formatTimestamp(status.timestamp)}</p>
+              <p>Last updated: {status.timestamp ? formatTimestamp(status.timestamp) : 'N/A'}</p>
             </div>
             
             <div className="endpoints-section">
               <h4>Available Endpoints</h4>
               <ul className="endpoints-list">
-                {status.endpoints.map((endpoint, index) => (
+                {status && status.endpoints && status.endpoints.map((endpoint, index) => (
                   <li key={index} className="endpoint-item">
-                    <span className={`method ${endpoint.method.toLowerCase()}`}>
-                      {endpoint.method}
+                    <span className={`method ${endpoint.method ? endpoint.method.toLowerCase() : 'unknown'}`}>
+                      {endpoint.method || 'UNKNOWN'}
                     </span>
-                    <span className="path">{endpoint.path}</span>
-                    <span className="description">{endpoint.description}</span>
+                    <span className="path">{endpoint.path || 'N/A'}</span>
+                    <span className="description">{endpoint.description || 'No description available'}</span>
                   </li>
                 ))}
+                {(!status.endpoints || status.endpoints.length === 0) && (
+                  <li className="endpoint-item">No endpoints available</li>
+                )}
               </ul>
             </div>
           </div>
@@ -138,15 +141,15 @@ export default function Dashboard() {
       
       <div className="logs-section">
         <h2>Server Logs</h2>
-        {logs.length > 0 ? (
+        {logs && logs.length > 0 ? (
           <div className="logs-container">
             {logs.map((log, index) => (
-              <div key={index} className={`log-entry ${log.type}`}>
+              <div key={index} className={`log-entry ${log.type || 'info'}`}>
                 <div className="log-header">
-                  <span className="timestamp">{formatTimestamp(log.timestamp)}</span>
-                  <span className={`type ${log.type}`}>{log.type}</span>
+                  <span className="timestamp">{log.timestamp ? formatTimestamp(log.timestamp) : 'N/A'}</span>
+                  <span className={`type ${log.type || 'info'}`}>{log.type || 'INFO'}</span>
                 </div>
-                <div className="log-message">{log.message}</div>
+                <div className="log-message">{log.message || 'No message'}</div>
                 {log.data && (
                   <pre className="log-data">{JSON.stringify(log.data, null, 2)}</pre>
                 )}
