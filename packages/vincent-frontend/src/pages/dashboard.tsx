@@ -166,33 +166,61 @@ export default function Dashboard() {
           padding: 20px;
           max-width: 1200px;
           margin: 0 auto;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          color: #333;
+          background-color: #f9f9f9;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
         
         h1 {
-          color: #333;
+          color: #1a73e8;
           margin-bottom: 30px;
+          font-weight: 600;
+          text-align: center;
+          padding-bottom: 15px;
+          border-bottom: 1px solid #eaeaea;
+        }
+        
+        h2 {
+          color: #333;
+          margin-bottom: 20px;
+          font-weight: 500;
+          border-left: 4px solid #1a73e8;
+          padding-left: 10px;
         }
         
         .status-section, .logs-section {
           margin-bottom: 40px;
+          background-color: #fff;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         
         .actions {
           display: flex;
           margin-bottom: 20px;
+          justify-content: flex-end;
         }
         
         .refresh-btn, .back-btn {
-          padding: 8px 16px;
+          padding: 10px 16px;
           margin-right: 10px;
           border-radius: 4px;
           cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s ease;
         }
         
         .refresh-btn {
-          background-color: #4caf50;
+          background-color: #1a73e8;
           color: white;
           border: none;
+        }
+        
+        .refresh-btn:hover {
+          background-color: #0d62d1;
         }
         
         .refresh-btn:disabled {
@@ -204,40 +232,53 @@ export default function Dashboard() {
           background-color: #f5f5f5;
           color: #333;
           text-decoration: none;
-          display: inline-block;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #ddd;
+        }
+        
+        .back-btn:hover {
+          background-color: #e8e8e8;
         }
         
         .loading {
+          display: flex;
+          justify-content: center;
+          align-items: center;
           padding: 20px;
-          text-align: center;
           color: #666;
+          font-style: italic;
         }
         
         .error-message {
-          padding: 15px;
           background-color: #ffebee;
           color: #c62828;
+          padding: 15px;
           border-radius: 4px;
           margin-bottom: 20px;
+          border-left: 4px solid #c62828;
         }
         
         .status-card {
-          background-color: white;
+          border: 1px solid #e0e0e0;
           border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-          padding: 20px;
+          overflow: hidden;
         }
         
         .status-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 15px;
+          padding: 15px;
+          background-color: #f5f5f5;
+          border-bottom: 1px solid #e0e0e0;
         }
         
         .status-header h3 {
           margin: 0;
           color: #333;
+          font-weight: 500;
         }
         
         .status-badge {
@@ -245,6 +286,7 @@ export default function Dashboard() {
           border-radius: 20px;
           font-size: 14px;
           font-weight: 500;
+          text-transform: uppercase;
         }
         
         .status-badge.running {
@@ -257,8 +299,30 @@ export default function Dashboard() {
           color: #c62828;
         }
         
+        .status-badge.unknown {
+          background-color: #f5f5f5;
+          color: #757575;
+        }
+        
+        .status-details {
+          padding: 15px;
+          border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .status-details p {
+          margin: 0;
+          color: #666;
+        }
+        
         .endpoints-section {
-          margin-top: 20px;
+          padding: 15px;
+        }
+        
+        .endpoints-section h4 {
+          margin-top: 0;
+          margin-bottom: 15px;
+          color: #333;
+          font-weight: 500;
         }
         
         .endpoints-list {
@@ -268,9 +332,11 @@ export default function Dashboard() {
         }
         
         .endpoint-item {
-          display: flex;
-          padding: 10px 0;
+          padding: 10px;
           border-bottom: 1px solid #f0f0f0;
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
         }
         
         .endpoint-item:last-child {
@@ -281,10 +347,11 @@ export default function Dashboard() {
           padding: 3px 8px;
           border-radius: 4px;
           font-size: 12px;
-          font-weight: 500;
+          font-weight: 600;
           margin-right: 10px;
           min-width: 60px;
           text-align: center;
+          text-transform: uppercase;
         }
         
         .method.get {
@@ -297,43 +364,71 @@ export default function Dashboard() {
           color: #2e7d32;
         }
         
-        .method.patch {
+        .method.put, .method.patch {
           background-color: #fff8e1;
           color: #f57f17;
         }
         
+        .method.delete {
+          background-color: #ffebee;
+          color: #c62828;
+        }
+        
+        .method.unknown {
+          background-color: #f5f5f5;
+          color: #757575;
+        }
+        
         .path {
           font-family: monospace;
-          margin-right: 15px;
           color: #333;
+          margin-right: 10px;
+          font-size: 14px;
+          font-weight: 500;
         }
         
         .description {
           color: #666;
           font-size: 14px;
+          flex: 1;
+          margin-top: 5px;
+          width: 100%;
         }
         
         .logs-container {
-          background-color: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-          padding: 10px;
           max-height: 600px;
           overflow-y: auto;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
         }
         
         .log-entry {
           padding: 15px;
-          margin-bottom: 10px;
-          border-radius: 4px;
+          border-bottom: 1px solid #f0f0f0;
         }
         
-        .log-entry.info {
-          background-color: #f5f5f5;
+        .log-entry:last-child {
+          border-bottom: none;
         }
         
         .log-entry.error {
           background-color: #ffebee;
+          border-left: 4px solid #c62828;
+        }
+        
+        .log-entry.warn {
+          background-color: #fff8e1;
+          border-left: 4px solid #f57f17;
+        }
+        
+        .log-entry.info {
+          background-color: #e8f5e9;
+          border-left: 4px solid #2e7d32;
+        }
+        
+        .log-entry.debug {
+          background-color: #e3f2fd;
+          border-left: 4px solid #1565c0;
         }
         
         .log-header {
@@ -351,12 +446,8 @@ export default function Dashboard() {
           padding: 2px 6px;
           border-radius: 4px;
           font-size: 12px;
-          font-weight: 500;
-        }
-        
-        .type.info {
-          background-color: #e8f5e9;
-          color: #2e7d32;
+          font-weight: 600;
+          text-transform: uppercase;
         }
         
         .type.error {
@@ -364,11 +455,24 @@ export default function Dashboard() {
           color: #c62828;
         }
         
+        .type.warn {
+          background-color: #fff8e1;
+          color: #f57f17;
+        }
+        
+        .type.info {
+          background-color: #e8f5e9;
+          color: #2e7d32;
+        }
+        
+        .type.debug {
+          background-color: #e3f2fd;
+          color: #1565c0;
+        }
+        
         .log-message {
           margin-bottom: 10px;
-          font-family: monospace;
-          white-space: pre-wrap;
-          word-break: break-all;
+          word-break: break-word;
         }
         
         .log-data {
@@ -384,9 +488,27 @@ export default function Dashboard() {
           padding: 20px;
           text-align: center;
           color: #666;
-          background-color: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+          .status-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          
+          .status-badge {
+            margin-top: 10px;
+          }
+          
+          .endpoint-item {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          
+          .method, .path {
+            margin-bottom: 5px;
+          }
         }
       `}</style>
     </div>
