@@ -174,7 +174,7 @@ export default function Dashboard() {
         }
         
         h1 {
-          color: #1a73e8;
+          color: #2e7d6e;
           margin-bottom: 30px;
           font-weight: 600;
           text-align: center;
@@ -186,7 +186,7 @@ export default function Dashboard() {
           color: #333;
           margin-bottom: 20px;
           font-weight: 500;
-          border-left: 4px solid #1a73e8;
+          border-left: 4px solid #2e7d6e;
           padding-left: 10px;
         }
         
@@ -214,13 +214,13 @@ export default function Dashboard() {
         }
         
         .refresh-btn {
-          background-color: #1a73e8;
+          background-color: #4caf50;
           color: white;
           border: none;
         }
         
         .refresh-btn:hover {
-          background-color: #0d62d1;
+          background-color: #45a049;
         }
         
         .refresh-btn:disabled {
@@ -271,13 +271,13 @@ export default function Dashboard() {
           justify-content: space-between;
           align-items: center;
           padding: 15px;
-          background-color: #f5f5f5;
-          border-bottom: 1px solid #e0e0e0;
+          background-color: #e0f2f1;
+          border-bottom: 1px solid #b2dfdb;
         }
         
         .status-header h3 {
           margin: 0;
-          color: #333;
+          color: #2e7d6e;
           font-weight: 500;
         }
         
@@ -321,7 +321,7 @@ export default function Dashboard() {
         .endpoints-section h4 {
           margin-top: 0;
           margin-bottom: 15px;
-          color: #333;
+          color: #2e7d6e;
           font-weight: 500;
         }
         
@@ -355,8 +355,8 @@ export default function Dashboard() {
         }
         
         .method.get {
-          background-color: #e3f2fd;
-          color: #1565c0;
+          background-color: #e0f2f1;
+          color: #00796b;
         }
         
         .method.post {
@@ -398,13 +398,15 @@ export default function Dashboard() {
         .logs-container {
           max-height: 600px;
           overflow-y: auto;
-          border: 1px solid #e0e0e0;
+          border: 1px solid #b2dfdb;
           border-radius: 8px;
+          background-color: #e0f2f1;
         }
         
         .log-entry {
           padding: 15px;
-          border-bottom: 1px solid #f0f0f0;
+          border-bottom: 1px solid #b2dfdb;
+          background-color: #f5f5f5;
         }
         
         .log-entry:last-child {
@@ -422,13 +424,13 @@ export default function Dashboard() {
         }
         
         .log-entry.info {
-          background-color: #e8f5e9;
-          border-left: 4px solid #2e7d32;
+          background-color: #e0f2f1;
+          border-left: 4px solid #00796b;
         }
         
         .log-entry.debug {
-          background-color: #e3f2fd;
-          border-left: 4px solid #1565c0;
+          background-color: #e8f5e9;
+          border-left: 4px solid #2e7d32;
         }
         
         .log-header {
@@ -461,13 +463,13 @@ export default function Dashboard() {
         }
         
         .type.info {
-          background-color: #e8f5e9;
-          color: #2e7d32;
+          background-color: #e0f2f1;
+          color: #00796b;
         }
         
         .type.debug {
-          background-color: #e3f2fd;
-          color: #1565c0;
+          background-color: #e8f5e9;
+          color: #2e7d32;
         }
         
         .log-message {
@@ -489,6 +491,7 @@ export default function Dashboard() {
           text-align: center;
           color: #666;
           font-style: italic;
+          background-color: #e0f2f1;
         }
         
         @media (max-width: 768px) {
