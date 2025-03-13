@@ -13,16 +13,27 @@ try {
 
 // Connect to MongoDB
 const dbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/vincent-service-dca';
+// Log connection string with hidden password
 console.log(`Using MongoDB URI: ${dbUri.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://user:***@')}`);
+
+// Parse MongoDB connection string to get database name
+function getDatabaseName(uri) {
+  try {
+    // Extract database name from URI
+    const matches = uri.match(/\/([^/?]+)(\?|$)/);
+    return matches ? matches[1] : 'vincent-service-dca';
+  } catch (e) {
+    return 'vincent-service-dca';
+  }
+}
+
+// Get database name from URI
+const dbName = getDatabaseName(dbUri);
+console.log(`Target database name: ${dbName}`);
 
 // Configure CORS with explicit domains
 const corsOptions = {
-  origin: [
-    'https://vincent-dca-hl6j.vercel.app', 
-    'http://localhost:3001',
-    'https://vincent-dca-frontend-e9492df4e8c3.herokuapp.com',
-    'https://vincent-dca-frontend.herokuapp.com'
-  ],
+  origin: '*', // Allow all origins for development
   methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
@@ -553,14 +564,22 @@ async function start() {
   try {
     // Connect to MongoDB
     console.log('Attempting to connect to MongoDB...');
-    await mongoose.connect(dbUri, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    
+    // Prepare connection options
+    const mongooseOptions = {
+      serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of 30s
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-    });
-    console.log('Successfully connected to MongoDB');
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      retryWrites: true,
+      w: 'majority',
+      authSource: 'admin' // Explicitly set auth source to admin for Atlas
+    };
+    
+    await mongoose.connect(dbUri, mongooseOptions);
+    console.log(`Successfully connected to MongoDB`);
     
     // Log database information
-    const dbName = mongoose.connection.name;
     console.log(`Connected to database: ${dbName}`);
     
     // Register routes
@@ -583,12 +602,22 @@ async function start() {
   } catch (err) {
     console.error('Error starting server:', err);
     
-    if (err.name === 'MongoServerSelectionError') {
+    if (err.name === 'MongoServerSelectionError' || err.name === 'MongooseServerSelectionError') {
       console.error('MongoDB connection error details:', {
         message: err.message,
         reason: err.reason ? err.reason.toString() : 'Unknown',
         hosts: err.topology ? Object.keys(err.topology.s.servers).join(', ') : 'Unknown'
       });
+      
+      // Check if it's an authentication error
+      if (err.message && err.message.includes('Authentication failed')) {
+        console.error('MongoDB authentication failed. Please check your username and password in the connection string.');
+      }
+      
+      // Check if it's a network error
+      if (err.message && err.message.includes('getaddrinfo')) {
+        console.error('MongoDB network error. Please check your network connection and MongoDB hostname.');
+      }
     }
     
     process.exit(1);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BACKEND_API_URL } from '../config';
+import { BACKEND_API_URL, createAuthHeaders, MOCK_JWT } from '../config';
 
 interface Log {
   timestamp: string;
@@ -26,31 +26,40 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // JWT token for authentication
+  const [jwtToken] = useState<string | null>(MOCK_JWT);
+
   const fetchLogs = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      
       // Fetch server status
-      const statusResponse = await fetch(`${BACKEND_API_URL}/health`);
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        setStatus(statusData);
-      } else {
-        setError('Failed to fetch server status');
+      const statusResponse = await fetch(`${BACKEND_API_URL}/health`, {
+        headers: createAuthHeaders(jwtToken || undefined)
+      });
+      
+      if (!statusResponse.ok) {
+        throw new Error(`Error fetching server status: ${statusResponse.statusText}`);
       }
+      
+      const statusData = await statusResponse.json();
+      setStatus(statusData);
       
       // Fetch logs
-      const logsResponse = await fetch(`${BACKEND_API_URL}/admin/logs`);
-      if (logsResponse.ok) {
-        const logsData = await logsResponse.json();
-        setLogs(logsData.logs || []);
-      } else {
-        setError('Failed to fetch logs');
+      const logsResponse = await fetch(`${BACKEND_API_URL}/admin/logs`, {
+        headers: createAuthHeaders(jwtToken || undefined)
+      });
+      
+      if (!logsResponse.ok) {
+        throw new Error(`Error fetching logs: ${logsResponse.statusText}`);
       }
+      
+      const logsData = await logsResponse.json();
+      setLogs(logsData.logs || []);
     } catch (err) {
-      setError('Network error while fetching data');
-      console.error('Error:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      console.error('Error fetching logs:', err);
     } finally {
       setLoading(false);
     }
@@ -84,8 +93,8 @@ export default function Dashboard() {
           <button onClick={fetchLogs} className="refresh-btn" disabled={loading}>
             Refresh
           </button>
-          <Link href="/">
-            <a className="back-btn">Back to App</a>
+          <Link href="/" className="back-btn">
+            Back to App
           </Link>
         </div>
         

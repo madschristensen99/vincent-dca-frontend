@@ -17,7 +17,7 @@ const BASE_API_URL = 'https://api.basescan.org/api';
 const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
 
 // Define the backend API URL
-import { BACKEND_API_URL } from '../config';
+import { BACKEND_API_URL, createAuthHeaders } from '../config';
 
 interface Transaction {
   hash: string;
@@ -299,14 +299,7 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
     
     // First try to fetch from our backend
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add authorization header if JWT token is available
-      if (jwtToken) {
-        headers['Authorization'] = `Bearer ${jwtToken}`;
-      }
+      const headers: HeadersInit = createAuthHeaders(jwtToken || undefined);
       
       // Revert to the original endpoint that was working
       const response = await fetch(`${BACKEND_API_URL}/dca/transactions/${walletAddress}`, {
@@ -401,13 +394,9 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
       const formattedAmount = amount.toString();
       
       // Prepare headers with JWT token if available
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
+      const headers: HeadersInit = createAuthHeaders(jwtToken || undefined);
       
-      if (jwtToken) {
-        headers['Authorization'] = `Bearer ${jwtToken}`;
-      } else {
+      if (!jwtToken) {
         setError('Authentication token not available. Please refresh the page and try again.');
         setIsLoading(false);
         return;

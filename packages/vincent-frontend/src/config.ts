@@ -12,5 +12,16 @@ export const BASESCAN_API_URL = 'https://api.basescan.org/api';
 export const JWT_EXPIRATION_MINUTES = 30;
 export const JWT_AUDIENCE = 'vincent-dca-app';
 
+// Mock JWT token for development - will be replaced with actual JWT in production
+export const MOCK_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+
 // Default settings
 export const DEFAULT_REFRESH_INTERVAL = 60000; // 1 minute in milliseconds
+
+// API request helper function with JWT authentication
+export const createAuthHeaders = (jwt: string = MOCK_JWT) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${jwt}`
+  };
+};

@@ -13,7 +13,7 @@ import { dcaService } from '../services/dcaService';
 import type { DCAExecutionResult, DCASchedule } from '../services/dcaService';
 import { dexService } from '../services/dexService';
 import styles from '../styles/ActiveDCAs.module.css';
-import { BACKEND_API_URL } from '../config';
+import { BACKEND_API_URL, createAuthHeaders } from '../config';
 
 // Define token information interface
 interface TokenInfo {
@@ -364,10 +364,7 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
     try {
       const response = await fetch(`${BACKEND_API_URL}/dca/schedules?walletAddress=${walletAddress}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${jwtToken}`
-        }
+        headers: createAuthHeaders(jwtToken)
       });
 
       if (!response.ok) {
@@ -439,10 +436,7 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
       
       const response = await fetch(apiUrl, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${jwtToken}`
-        },
+        headers: createAuthHeaders(jwtToken),
         // Send an empty JSON object as required by the JWT authentication system
         body: JSON.stringify({})
       });
