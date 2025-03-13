@@ -1,5 +1,4 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "es5",
     "lib": [
@@ -29,7 +28,6 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules",
-    "jest.config.ts"
+    "node_modules"
   ]
 }

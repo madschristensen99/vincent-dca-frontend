@@ -516,6 +516,7 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
 export function DCAManagement({ walletAddress }: { walletAddress: string }) {
   return (
     <div className="dca-management-container">
+      <h1>DCA Management</h1>
       <DCAManagementView walletAddress={walletAddress} />
     </div>
   );

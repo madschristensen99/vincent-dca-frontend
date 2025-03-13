@@ -25,15 +25,15 @@ export default function Dashboard() {
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   // JWT token for authentication
   const [jwtToken] = useState<string | null>(MOCK_JWT);
 
   const fetchLogs = async () => {
-    setLoading(true);
-    setError(null);
-    
     try {
+      setLoading(true);
+      
       // Fetch server status
       const statusResponse = await fetch(`${BACKEND_API_URL}/health`, {
         headers: createAuthHeaders(jwtToken || undefined)
@@ -68,16 +68,29 @@ export default function Dashboard() {
   useEffect(() => {
     fetchLogs();
     
-    // Set up polling
-    let interval: NodeJS.Timeout;
-    if (!error) {
+    // Set up auto-refresh if enabled
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefresh) {
       interval = setInterval(fetchLogs, 5000); // Refresh every 5 seconds
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [error]);
+  }, [autoRefresh]);
+  
+  const getLogTypeClass = (type: string) => {
+    switch (type.toUpperCase()) {
+      case 'ERROR':
+        return 'log-error';
+      case 'WARNING':
+        return 'log-warning';
+      case 'INFO':
+        return 'log-info';
+      default:
+        return '';
+    }
+  };
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
@@ -144,10 +157,10 @@ export default function Dashboard() {
         {logs && logs.length > 0 ? (
           <div className="logs-container">
             {logs.map((log, index) => (
-              <div key={index} className={`log-entry ${log.type || 'info'}`}>
+              <div key={index} className={`log-entry ${getLogTypeClass(log.type)}`}>
                 <div className="log-header">
                   <span className="timestamp">{log.timestamp ? formatTimestamp(log.timestamp) : 'N/A'}</span>
-                  <span className={`type ${log.type || 'info'}`}>{log.type || 'INFO'}</span>
+                  <span className={`type ${getLogTypeClass(log.type)}`}>{log.type || 'INFO'}</span>
                 </div>
                 <div className="log-message">{log.message || 'No message'}</div>
                 {log.data && (

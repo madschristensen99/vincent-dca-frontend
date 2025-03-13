@@ -1,25 +1,20 @@
 {
   "name": "vincent-frontend",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/vincent-frontend",
   "projectType": "application",
   "targets": {
     "build": {
-      "executor": "@nx/next:build",
-      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/packages/vincent-frontend"
+        "outputPath": "dist"
       },
       "configurations": {
         "development": {
-          "outputPath": "packages/vincent-frontend"
+          "outputPath": "."
         },
         "production": {}
       }
     },
     "serve": {
-      "executor": "@nx/next:server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "vincent-frontend:build",
@@ -42,4 +37,4 @@
     }
   },
   "tags": []
-} 
+}

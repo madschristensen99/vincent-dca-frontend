@@ -311,13 +311,13 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
       
       return result;
     } catch (error) {
-    console.error('Error simulating transaction:', error);
-    setError(`Error simulating transaction: ${error instanceof Error ? error.message : String(error)}`);
-    return null;
-  } finally {
-    setSimulatingTransaction(null);
-  }
-};
+      console.error('Error simulating transaction:', error);
+      setError(`Error simulating transaction: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    } finally {
+      setSimulatingTransaction(null);
+    }
+  };
 
   // Fetch token information from a DEX or token list API
   const fetchTokenInfo = async (tokenAddress: string) => {
