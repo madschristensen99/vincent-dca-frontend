@@ -26,18 +26,23 @@ declare global {
   };
 }
 
+// ABI for SpendingLimits contract
+const SPENDING_LIMITS_ABI = [
+  "function checkLimit(address user, uint256 amount) view returns (bool)",
+  "function spend(uint256 amount) public",
+];
+
 (async () => {
   try {
     console.log(`litActionParams: ${JSON.stringify(litActionParams, null, 2)}`);
 
     const LIT_NETWORK = 'datil';
-    const VINCENT_AGENT_REGISTRY_ADDRESS =
-      '0xaE7C442E8d8A6dc07C02A6f41333C2480F28b430';
+    const VINCENT_AGENT_REGISTRY_ADDRESS = '0xaE7C442E8d8A6dc07C02A6f41333C2480F28b430';
+    const SPENDING_LIMITS_ADDRESS = '0xdAAe7CE713313b2C62eC5284DD3f3F7f4bA95332';
 
     console.log(`Using Lit Network: ${LIT_NETWORK}`);
-    console.log(
-      `Using Vincent Agent Registry Address: ${VINCENT_AGENT_REGISTRY_ADDRESS}`
-    );
+    console.log(`Using Vincent Agent Registry Address: ${VINCENT_AGENT_REGISTRY_ADDRESS}`);
+    console.log(`Using Spending Limits Address: ${SPENDING_LIMITS_ADDRESS}`);
 
     const delegateeAddress = ethers.utils.getAddress(LitAuth.authSigAddress);
     const vincentAgentRegistryContract = await getVincentAgentRegistryContract(
@@ -116,6 +121,25 @@ declare global {
     const provider = new ethers.providers.JsonRpcProvider(
       litActionParams.rpcUrl
     );
+
+    // Initialize SpendingLimits contract
+    const spendingLimitsContract = new ethers.Contract(
+      SPENDING_LIMITS_ADDRESS,
+      SPENDING_LIMITS_ABI,
+      provider
+    );
+
+    // Check daily spending limit
+    console.log(
+      `Checking daily spending limit for ${pkp.ethAddress} with amount ${amountInBigNumber.toString()}...`
+    );
+    const canSpend = await spendingLimitsContract.checkLimit(
+      pkp.ethAddress,
+      amountInBigNumber
+    );
+    if (!canSpend) {
+      throw new Error('Daily spending limit exceeded');
+    }
 
     const { UNISWAP_V3_QUOTER, UNISWAP_V3_ROUTER } = getUniswapQuoterRouter(
       litActionParams.chainId
@@ -202,11 +226,18 @@ declare global {
     const swapHash = await broadcastTransaction(provider, signedSwapTx);
     console.log('Swap transaction hash:', swapHash);
 
+    // Update spending record after successful swap
+    console.log('Updating spending record...');
+    const spendTx = await spendingLimitsContract.spend(amountInBigNumber);
+    const spendTxHash = await broadcastTransaction(provider, spendTx);
+    console.log('Spend transaction hash:', spendTxHash);
+
     Lit.Actions.setResponse({
       response: JSON.stringify({
         status: 'success',
         approvalHash,
         swapHash,
+        spendTxHash,
       }),
     });
   } catch (err: any) {
