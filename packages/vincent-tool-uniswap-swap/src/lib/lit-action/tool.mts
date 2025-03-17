@@ -99,6 +99,16 @@ const SPENDING_LIMITS_ABI = [
     }
   ];
 
+// Function to fetch token price in USD from DexScreener
+async function getTokenPriceInUSD(tokenAddress: string): Promise<number> {
+  const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+  const data = await response.json();
+  if (data.pairs && data.pairs.length > 0) {
+    return parseFloat(data.pairs[0].priceUsd);
+  }
+  throw new Error('Token price not found');
+}
+
 (async () => {
   try {
     console.log(`litActionParams: ${JSON.stringify(litActionParams, null, 2)}`);
@@ -151,13 +161,13 @@ const SPENDING_LIMITS_ABI = [
     const policyParameterValues = app.policyValues[toolIndex];
     console.log(`Policy parameter values: ${policyParameterValues}`);
 
-    let maxAmount: any;
+    let maxAmountUSD: any;
 
     for (const [i, parameterName] of policyParameterNames.entries()) {
       switch (parameterName) {
-        case 'maxAmount':
-          maxAmount = ethers.BigNumber.from(policyParameterValues[i]);
-          console.log(`Formatted maxAmount: ${maxAmount.toString()}`);
+        case 'maxAmountUSD':
+          maxAmountUSD = ethers.BigNumber.from(policyParameterValues[i]);
+          console.log(`Formatted maxAmountUSD: ${maxAmountUSD.toString()}`);
           break;
         default:
           throw new Error(
@@ -169,15 +179,22 @@ const SPENDING_LIMITS_ABI = [
     const amountInBigNumber = ethers.BigNumber.from(
       ethers.utils.parseEther(litActionParams.amountIn)
     );
+
+    // Fetch token prices in USD
+    const tokenInPriceUSD = await getTokenPriceInUSD(litActionParams.tokenIn);
+    const tokenOutPriceUSD = await getTokenPriceInUSD(litActionParams.tokenOut);
+
+    // Convert amountIn to USD
+    const amountInUSD = amountInBigNumber.mul(ethers.utils.parseUnits(tokenInPriceUSD.toString(), 18)).div(ethers.constants.WeiPerEther);
     console.log(
-      `Checking if amount ${amountInBigNumber.toString()} exceeds maxAmount ${maxAmount.toString()}...`
+      `Checking if amount in USD ${amountInUSD.toString()} exceeds maxAmountUSD ${maxAmountUSD.toString()}...`
     );
 
-    if (amountInBigNumber.gt(maxAmount)) {
+    if (amountInUSD.gt(maxAmountUSD)) {
       throw new Error(
-        `Amount ${ethers.utils.formatUnits(
-          amountInBigNumber
-        )} exceeds the maximum amount ${ethers.utils.formatUnits(maxAmount)}`
+        `Amount in USD ${ethers.utils.formatUnits(
+          amountInUSD
+        )} exceeds the maximum amount in USD ${ethers.utils.formatUnits(maxAmountUSD)}`
       );
     }
 
@@ -196,13 +213,13 @@ const SPENDING_LIMITS_ABI = [
       provider
     );
 
-    // Check daily spending limit
+    // Check daily spending limit in USD
     console.log(
-      `Checking daily spending limit for ${pkp.ethAddress} with amount ${amountInBigNumber.toString()}...`
+      `Checking daily spending limit for ${pkp.ethAddress} with amount in USD ${amountInUSD.toString()}...`
     );
     const canSpend = await spendingLimitsContract.checkLimit(
       pkp.ethAddress,
-      amountInBigNumber
+      amountInUSD
     );
     if (!canSpend) {
       throw new Error('Daily spending limit exceeded');
@@ -295,7 +312,7 @@ const SPENDING_LIMITS_ABI = [
 
     // Update spending record after successful swap
     console.log('Updating spending record...');
-    const spendTx = await spendingLimitsContract.spend(amountInBigNumber);
+    const spendTx = await spendingLimitsContract.spend(amountInUSD);
     const spendTxHash = await broadcastTransaction(provider, spendTx);
     console.log('Spend transaction hash:', spendTxHash);
 
