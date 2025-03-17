@@ -28,9 +28,76 @@ declare global {
 
 // ABI for SpendingLimits contract
 const SPENDING_LIMITS_ABI = [
-  "function checkLimit(address user, uint256 amount) view returns (bool)",
-  "function spend(uint256 amount) public",
-];
+    {
+      "type": "function",
+      "name": "checkLimit",
+      "inputs": [
+        {"name": "user", "type": "address", "internalType": "address"},
+        {"name": "amount", "type": "uint256", "internalType": "uint256"}
+      ],
+      "outputs": [
+        {"name": "", "type": "bool", "internalType": "bool"}
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "limit",
+      "inputs": [],
+      "outputs": [
+        {"name": "", "type": "uint256", "internalType": "uint256"}
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "period",
+      "inputs": [],
+      "outputs": [
+        {"name": "", "type": "uint256", "internalType": "uint256"}
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "pruneOldSpends",
+      "inputs": [
+        {"name": "user", "type": "address", "internalType": "address"}
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "spend",
+      "inputs": [
+        {"name": "amount", "type": "uint256", "internalType": "uint256"}
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "spends",
+      "inputs": [
+        {"name": "", "type": "address", "internalType": "address"},
+        {"name": "", "type": "uint256", "internalType": "uint256"}
+      ],
+      "outputs": [
+        {"name": "amount", "type": "uint256", "internalType": "uint256"},
+        {"name": "timestamp", "type": "uint256", "internalType": "uint256"}
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "error",
+      "name": "SpendLimitExceeded",
+      "inputs": [
+        {"name": "user", "type": "address", "internalType": "address"},
+        {"name": "amount", "type": "uint256", "internalType": "uint256"}
+      ]
+    }
+  ];
 
 (async () => {
   try {
