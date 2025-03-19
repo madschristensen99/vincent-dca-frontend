@@ -3,6 +3,8 @@ const fastify = require('fastify')();
 const mongoose = require('mongoose');
 const cors = require('@fastify/cors');
 const path = require('path');
+const { verifyJwtMiddleware } = require('./src/middleware/auth.cjs');
+const { VincentSDK } = require('@lit-protocol/vincent-sdk'); // Import the Vincent SDK
 
 // Load environment variables if dotenv is available
 try {
@@ -205,14 +207,14 @@ const PurchasedCoin = mongoose.model('PurchasedCoin', purchasedCoinSchema);
 // Schedule Routes
 async function registerScheduleRoutes() {
   // Get all DCA schedules
-  fastify.get('/dca/schedules', async () => {
+  fastify.get('/api/dca/schedules', async () => {
     return await Schedule.find()
       .sort({ registeredAt: -1 }) // Sort by registration date, newest first
       .lean();
   });
 
   // Get DCA schedules by wallet address
-  fastify.get('/dca/schedules/:walletAddress', async (request, reply) => {
+  fastify.get('/api/dca/schedules/:walletAddress', async (request, reply) => {
     const { walletAddress } = request.params;
     
     // Only fetch the most recent schedule for this wallet address
@@ -232,7 +234,7 @@ async function registerScheduleRoutes() {
   });
 
   // Get DCA schedule by ID
-  fastify.get('/dca/schedules/id/:scheduleId', async (request, reply) => {
+  fastify.get('/api/dca/schedules/id/:scheduleId', async (request, reply) => {
     const { scheduleId } = request.params;
     const schedule = await Schedule.findOne({ _id: scheduleId }).lean();
 
@@ -247,7 +249,7 @@ async function registerScheduleRoutes() {
   });
 
   // Create new DCA schedule
-  fastify.post('/dca/schedules', async (request, reply) => {
+  fastify.post('/api/dca/schedules', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
     try {
       const scheduleData = request.body;
       
@@ -297,7 +299,8 @@ async function registerScheduleRoutes() {
 
   // Deactivate DCA schedule
   fastify.patch(
-    '/dca/schedules/:scheduleId/deactivate',
+    '/api/dca/schedules/:scheduleId/deactivate',
+    { preHandler: verifyJwtMiddleware },
     async (request, reply) => {
       const { scheduleId } = request.params;
 
@@ -323,7 +326,8 @@ async function registerScheduleRoutes() {
 
   // Activate DCA schedule
   fastify.patch(
-    '/dca/schedules/:scheduleId/activate',
+    '/api/dca/schedules/:scheduleId/activate',
+    { preHandler: verifyJwtMiddleware },
     async (request, reply) => {
       const { scheduleId } = request.params;
 
@@ -351,7 +355,7 @@ async function registerScheduleRoutes() {
 // Purchase Routes
 async function registerPurchaseRoutes() {
   // Get all DCA transactions
-  fastify.get('/dca/transactions', async () => {
+  fastify.get('/api/dca/transactions', async () => {
     return await PurchasedCoin.find()
       .sort({ purchasedAt: -1 })
       .populate('scheduleId', 'walletAddress')
@@ -359,7 +363,7 @@ async function registerPurchaseRoutes() {
   });
 
   // Get all DCA transactions for a wallet address
-  fastify.get('/dca/transactions/:walletAddress', async (request, reply) => {
+  fastify.get('/api/dca/transactions/:walletAddress', async (request, reply) => {
     const { walletAddress } = request.params;
 
     const purchases = await PurchasedCoin.find({ walletAddress }).sort({
@@ -378,7 +382,7 @@ async function registerPurchaseRoutes() {
 
   // Get latest DCA transaction for a wallet address
   fastify.get(
-    '/dca/transactions/:walletAddress/latest',
+    '/api/dca/transactions/:walletAddress/latest',
     async (request, reply) => {
       const { walletAddress } = request.params;
 
@@ -398,7 +402,7 @@ async function registerPurchaseRoutes() {
   );
 
   // Test balance check functionality
-  fastify.post('/dca/test/balance-check', async (request, reply) => {
+  fastify.post('/api/dca/test/balance-check', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
     const { walletAddress, simulatedBalance } = request.body;
 
     if (!walletAddress) {
@@ -431,7 +435,7 @@ async function registerPurchaseRoutes() {
   });
 
   // Add a simulation endpoint for testing DCA transactions
-  fastify.post('/dca/simulate/transaction', async (request, reply) => {
+  fastify.post('/api/dca/simulate/transaction', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
     try {
       const { scheduleId, walletAddress, amount, symbol, name } = request.body;
       
@@ -470,10 +474,121 @@ async function registerPurchaseRoutes() {
       return { error: 'Internal server error' };
     }
   });
+
+  // Spending Limits API Routes
+  
+  // Set spending policy for a user
+  fastify.post('/api/spending-limits/policy', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
+    try {
+      const { limit, period, walletAddress } = request.body;
+      
+      if (!limit || !period || !walletAddress) {
+        return reply.code(400).send({ 
+          error: 'Missing required parameters. Please provide limit, period, and walletAddress.' 
+        });
+      }
+      
+      // Here you would interact with the spending limits contract
+      // This is a placeholder for the actual implementation
+      console.log(`Setting spending policy for ${walletAddress}: limit=${limit}, period=${period}`);
+      
+      // Return success response
+      return reply.code(200).send({ 
+        success: true, 
+        message: 'Spending policy set successfully',
+        policy: { limit, period, walletAddress }
+      });
+    } catch (error) {
+      console.error('Error setting spending policy:', error);
+      return reply.code(500).send({ error: 'Failed to set spending policy' });
+    }
+  });
+  
+  // Get current spending for a user
+  fastify.get('/api/spending-limits/current/:walletAddress', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
+    try {
+      const { walletAddress } = request.params;
+      
+      if (!walletAddress) {
+        return reply.code(400).send({ error: 'Wallet address is required' });
+      }
+      
+      // Here you would call the getCurrentSpending function from spendingLimitsAction.js
+      // This is a placeholder for the actual implementation
+      const mockResponse = {
+        success: true,
+        currentSpent: "50.00",
+        limit: "100.00",
+        period: "86400", // 1 day in seconds
+        isActive: true
+      };
+      
+      return reply.code(200).send(mockResponse);
+    } catch (error) {
+      console.error('Error getting current spending:', error);
+      return reply.code(500).send({ error: 'Failed to get current spending' });
+    }
+  });
+  
+  // Authorize a delegatee for a user
+  fastify.post('/api/spending-limits/authorize', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
+    try {
+      const { userWalletAddress, delegateeAddress, status } = request.body;
+      
+      if (!userWalletAddress || !delegateeAddress || status === undefined) {
+        return reply.code(400).send({ 
+          error: 'Missing required parameters. Please provide userWalletAddress, delegateeAddress, and status.' 
+        });
+      }
+      
+      // Here you would interact with the spending limits contract to authorize the delegatee
+      // This is a placeholder for the actual implementation
+      console.log(`${status ? 'Authorizing' : 'Deauthorizing'} delegatee ${delegateeAddress} for user ${userWalletAddress}`);
+      
+      return reply.code(200).send({ 
+        success: true, 
+        message: `Delegatee ${status ? 'authorized' : 'deauthorized'} successfully`,
+        userWalletAddress,
+        delegateeAddress,
+        status
+      });
+    } catch (error) {
+      console.error('Error authorizing delegatee:', error);
+      return reply.code(500).send({ error: 'Failed to authorize delegatee' });
+    }
+  });
+  
+  // Check if a transaction would exceed spending limits
+  fastify.post('/api/spending-limits/check', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
+    try {
+      const { userWalletAddress, tokenAddress, tokenAmount, tokenDecimals } = request.body;
+      
+      if (!userWalletAddress || !tokenAddress || !tokenAmount) {
+        return reply.code(400).send({ 
+          error: 'Missing required parameters. Please provide userWalletAddress, tokenAddress, and tokenAmount.' 
+        });
+      }
+      
+      // Here you would call the checkSpendingLimits function from spendingLimitsAction.js
+      // This is a placeholder for the actual implementation
+      const mockResponse = {
+        success: true,
+        withinLimit: true,
+        usdValue: "25.00",
+        tokenAmount,
+        tokenPrice: "2000.00" // Example price for ETH
+      };
+      
+      return reply.code(200).send(mockResponse);
+    } catch (error) {
+      console.error('Error checking spending limits:', error);
+      return reply.code(500).send({ error: 'Failed to check spending limits' });
+    }
+  });
 }
 
 // Health check endpoint
-fastify.get('/health', async (request, reply) => {
+fastify.get('/api/health', async (request, reply) => {
   return { 
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -483,24 +598,218 @@ fastify.get('/health', async (request, reply) => {
   };
 });
 
+// Simple test endpoint to verify route registration
+fastify.get('/api/test-route', async (request, reply) => {
+  return {
+    success: true,
+    message: 'Test route is working',
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Test JWT endpoint for debugging
+fastify.post('/api/test-jwt', async (request, reply) => {
+  try {
+    const authHeader = request.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return reply.code(401).send({ 
+        error: 'Authentication required', 
+        details: 'No Authorization header found or invalid format' 
+      });
+    }
+    
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Log token details for debugging
+    console.log('Received JWT token (first 20 chars):', token.substring(0, 20) + '...');
+    console.log('Token length:', token.length);
+    
+    // Try to use Vincent SDK's JWT methods with the correct approach
+    try {
+      const vincentSDK = new VincentSDK();
+      
+      // First, store the JWT - this is required before using other methods
+      console.log('Storing JWT in Vincent SDK...');
+      await vincentSDK.storeJWT(token);
+      console.log('JWT stored successfully');
+      
+      // Parse the JWT to get the audience
+      const tokenParts = token.split('.');
+      let audience = 'http://localhost:3001/'; // Default audience
+      
+      if (tokenParts.length === 3) {
+        try {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+          if (payload.aud) {
+            audience = payload.aud;
+            console.log('Found audience in JWT payload:', audience);
+          }
+        } catch (error) {
+          console.error('Error parsing JWT payload:', error);
+        }
+      }
+      
+      // Now verify the JWT with the audience parameter
+      console.log('Verifying JWT with audience:', audience);
+      const isValid = await vincentSDK.verifyJWT(audience);
+      console.log('JWT verification result:', isValid);
+      
+      // Return the verification result
+      return reply.send({
+        success: true,
+        valid: isValid,
+        message: isValid ? 'JWT verified successfully' : 'JWT verification failed',
+        audience: audience
+      });
+    } catch (sdkError) {
+      console.error('Error using Vincent SDK to verify JWT:', sdkError);
+      
+      // Fall back to manual parsing if Vincent SDK fails
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length !== 3) {
+          return reply.code(400).send({ 
+            error: 'Invalid token format', 
+            details: 'JWT must have 3 parts (header.payload.signature)' 
+          });
+        }
+        
+        // Decode header and payload
+        const headerStr = Buffer.from(tokenParts[0], 'base64').toString();
+        const payloadStr = Buffer.from(tokenParts[1], 'base64').toString();
+        
+        const header = JSON.parse(headerStr);
+        const payload = JSON.parse(payloadStr);
+        
+        // Return the decoded token information
+        return reply.send({
+          success: true,
+          message: 'JWT parsed successfully (without Vincent SDK)',
+          sdkError: sdkError.message,
+          tokenInfo: {
+            header,
+            payload,
+            signature: tokenParts[2].substring(0, 10) + '...' // Just show part of the signature
+          }
+        });
+      } catch (parseError) {
+        return reply.code(400).send({ 
+          error: 'Error parsing JWT', 
+          details: parseError.message 
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error in test-jwt endpoint:', error);
+    return reply.code(500).send({ 
+      error: 'Server error', 
+      details: error.message 
+    });
+  }
+});
+
+// Test SDK JWT endpoint
+fastify.post('/api/test-sdk-jwt', async (request, reply) => {
+  try {
+    const authHeader = request.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return reply.code(401).send({ 
+        error: 'Authentication required', 
+        details: 'No Authorization header found or invalid format' 
+      });
+    }
+    
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Initialize the Vincent SDK
+    const vincentSDK = new VincentSDK();
+    const results = {};
+    
+    // Try all available JWT methods in the SDK
+    try {
+      console.log('Trying Vincent SDK decodeJWT method...');
+      results.decodeJWT = vincentSDK.decodeJWT(token);
+    } catch (e) {
+      results.decodeJWT = { error: e.message };
+    }
+    
+    try {
+      console.log('Trying Vincent SDK getJWT method...');
+      results.getJWT = vincentSDK.getJWT();
+    } catch (e) {
+      results.getJWT = { error: e.message };
+    }
+    
+    // Try to store the JWT in the SDK
+    try {
+      console.log('Trying Vincent SDK storeJWT method...');
+      await vincentSDK.storeJWT(token);
+      results.storeJWT = { success: true };
+      
+      // After storing, try to verify
+      try {
+        console.log('Trying Vincent SDK verifyJWT after storing...');
+        const audiences = ["vincent-dca-service", "http://localhost:3001/", "http://localhost:3001"];
+        for (const audience of audiences) {
+          try {
+            console.log(`Attempting to verify JWT with audience: ${audience}`);
+            const isValid = await vincentSDK.verifyJWT(token, audience);
+            if (isValid) {
+              results.verifyJWTAfterStore = { 
+                success: true, 
+                audience: audience 
+              };
+              break;
+            }
+          } catch (err) {
+            console.log(`JWT verification failed with audience ${audience}:`, err.message);
+            results.verifyJWTAfterStore = { 
+              error: err.message,
+              audience: audience 
+            };
+          }
+        }
+      } catch (e) {
+        results.verifyJWTAfterStore = { error: e.message };
+      }
+    } catch (e) {
+      results.storeJWT = { error: e.message };
+    }
+    
+    return reply.send({
+      success: true,
+      message: 'Vincent SDK JWT methods test results',
+      results: results
+    });
+  } catch (error) {
+    console.error('Error in test-sdk-jwt endpoint:', error);
+    return reply.code(500).send({ 
+      error: 'Server error', 
+      details: error.message 
+    });
+  }
+});
+
 // Root endpoint
-fastify.get('/', async (request, reply) => {
+fastify.get('/api/', async (request, reply) => {
   return { 
     service: 'Vincent DCA Service',
     status: 'running',
     endpoints: [
-      { method: 'GET', path: '/dca/schedules', description: 'Get all DCA schedules' },
-      { method: 'GET', path: '/dca/schedules/:walletAddress', description: 'Get DCA schedules by wallet address' },
-      { method: 'GET', path: '/dca/schedules/id/:scheduleId', description: 'Get DCA schedule by ID' },
-      { method: 'POST', path: '/dca/schedules', description: 'Create new DCA schedule' },
-      { method: 'PATCH', path: '/dca/schedules/:scheduleId/deactivate', description: 'Deactivate DCA schedule' },
-      { method: 'PATCH', path: '/dca/schedules/:scheduleId/activate', description: 'Activate DCA schedule' },
-      { method: 'GET', path: '/dca/transactions', description: 'Get all DCA transactions' },
-      { method: 'GET', path: '/dca/transactions/:walletAddress', description: 'Get all DCA transactions for a wallet address' },
-      { method: 'GET', path: '/dca/transactions/:walletAddress/latest', description: 'Get latest DCA transaction for a wallet address' },
-      { method: 'POST', path: '/dca/test/balance-check', description: 'Test balance check functionality' },
-      { method: 'POST', path: '/dca/simulate/transaction', description: 'Simulate a transaction' },
-      { method: 'GET', path: '/health', description: 'Health check endpoint' }
+      { method: 'GET', path: '/api/dca/schedules', description: 'Get all DCA schedules' },
+      { method: 'GET', path: '/api/dca/schedules/:walletAddress', description: 'Get DCA schedules by wallet address' },
+      { method: 'GET', path: '/api/dca/schedules/id/:scheduleId', description: 'Get DCA schedule by ID' },
+      { method: 'POST', path: '/api/dca/schedules', description: 'Create new DCA schedule' },
+      { method: 'PATCH', path: '/api/dca/schedules/:scheduleId/deactivate', description: 'Deactivate DCA schedule' },
+      { method: 'PATCH', path: '/api/dca/schedules/:scheduleId/activate', description: 'Activate DCA schedule' },
+      { method: 'GET', path: '/api/dca/transactions', description: 'Get all DCA transactions' },
+      { method: 'GET', path: '/api/dca/transactions/:walletAddress', description: 'Get all DCA transactions for a wallet address' },
+      { method: 'GET', path: '/api/dca/transactions/:walletAddress/latest', description: 'Get latest DCA transaction for a wallet address' },
+      { method: 'POST', path: '/api/dca/test/balance-check', description: 'Test balance check functionality' },
+      { method: 'POST', path: '/api/dca/simulate/transaction', description: 'Simulate a transaction' },
+      { method: 'GET', path: '/api/health', description: 'Health check endpoint' }
     ],
     timestamp: new Date().toISOString()
   };
@@ -554,9 +863,144 @@ console.error = function() {
 };
 
 // Add an endpoint to get the server logs
-fastify.get('/admin/logs', async (request, reply) => {
+fastify.get('/api/admin/logs', async (request, reply) => {
   // Return the most recent 100 logs in reverse chronological order (newest first)
   return { logs: serverLogs.slice(-100).reverse() };
+});
+
+// Register static files
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, 'public'),
+  prefix: '/'
+});
+
+// Direct route for wallet balance
+fastify.post('/api/wallet/balance', async (request, reply) => {
+  try {
+    const { walletAddress, chainId } = request.body;
+
+    if (!walletAddress) {
+      return reply.code(400).send({ 
+        success: false, 
+        message: 'Wallet address is required' 
+      });
+    }
+
+    // Determine RPC URL based on chain ID
+    let rpcUrl;
+    if (chainId === '84532') {
+      // Base Sepolia
+      rpcUrl = process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+    } else {
+      return reply.code(400).send({ 
+        success: false, 
+        message: 'Unsupported chain ID' 
+      });
+    }
+
+    console.log(`Fetching balance for ${walletAddress} on chain ${chainId}`);
+    
+    // Create provider
+    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+    
+    // Get balance
+    const balanceWei = await provider.getBalance(walletAddress);
+    const balanceEth = ethers.utils.formatEther(balanceWei);
+
+    console.log(`Balance for ${walletAddress}: ${balanceEth} ETH`);
+
+    return reply.send({
+      success: true,
+      balance: balanceEth,
+      address: walletAddress,
+      chainId
+    });
+  } catch (error) {
+    console.error('Error fetching wallet balance:', error);
+    return reply.code(500).send({ 
+      success: false, 
+      message: 'Failed to fetch wallet balance',
+      error: error.message
+    });
+  }
+});
+
+// Direct route for top memecoin
+fastify.post('/api/tokens/top-memecoin', async (request, reply) => {
+  try {
+    const { chainId } = request.body;
+
+    // For Base Sepolia, we'll return a mock top memecoin
+    if (chainId === '84532') {
+      // Mock data for Base Sepolia
+      return reply.send({
+        success: true,
+        name: "Base Doge",
+        symbol: "BDOGE",
+        address: "0x4200000000000000000000000000000000000042", // Example address
+        decimals: 18,
+        price: "0.0042",
+        change24h: "+5.2%",
+        marketCap: "4200000",
+        volume24h: "420000"
+      });
+    } else {
+      return reply.code(400).send({ 
+        success: false, 
+        message: 'Unsupported chain ID' 
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching top memecoin:', error);
+    return reply.code(500).send({ 
+      success: false, 
+      message: 'Failed to fetch top memecoin',
+      error: error.message
+    });
+  }
+});
+
+// Direct route for spending limits info
+fastify.post('/api/spending-limits/info', async (request, reply) => {
+  try {
+    const { walletAddress, contractAddress, chainId } = request.body;
+    
+    if (!walletAddress || !contractAddress) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Wallet address and contract address are required'
+      });
+    }
+    
+    // Determine RPC URL based on chain ID
+    let rpcUrl;
+    if (chainId === '84532') {
+      // Base Sepolia
+      rpcUrl = process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+    } else {
+      rpcUrl = process.env.RPC_URL || "https://eth-mainnet.g.alchemy.com/v2/your-api-key";
+    }
+    
+    console.log(`Fetching spending limits for ${walletAddress} on contract ${contractAddress}`);
+    
+    // For now, return mock data
+    return reply.send({
+      success: true,
+      walletAddress,
+      contractAddress,
+      spent: '0.1',
+      limit: '1.0',
+      remaining: '0.9',
+      period: '86400', // 1 day in seconds
+      isActive: true
+    });
+  } catch (error) {
+    console.error('Error getting spending limit info:', error);
+    reply.code(500).send({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Start the server
@@ -583,15 +1027,144 @@ async function start() {
     console.log(`Connected to database: ${dbName}`);
     
     // Register routes
+    console.log('Registering schedule routes...');
     await registerScheduleRoutes();
+    console.log('Schedule routes registered');
+    
+    console.log('Registering purchase routes...');
     await registerPurchaseRoutes();
+    console.log('Purchase routes registered');
+    
+    // Register tools routes
+    console.log('Registering tools routes...');
+    fastify.register(require('./src/routes/tools.cjs'), { prefix: '/api/tools' });
 
-    // Serve static files
-    fastify.register(require('@fastify/static'), {
-      root: path.join(__dirname, 'public'),
-      prefix: '/',
-    });
+    // Comment out the wallet routes to avoid the conflict
+    // Register wallet routes
+    // console.log('Registering wallet routes...');
+    // fastify.register(require('./src/routes/wallet.cjs'), { prefix: '/api/wallet' });
 
+    // Register tokens routes
+    console.log('Registering tokens routes...');
+    // Comment out the tokens routes to avoid the conflict
+    // fastify.register(require('./src/routes/tokens.cjs'), { prefix: '/api/tokens' });
+
+    // Convert spending-limits.js to CommonJS format for consistency
+    console.log('Registering spending-limits routes...');
+    /*
+    // Create a wrapper for the ES module
+    const spendingLimitsRoutes = async (fastify, opts) => {
+      const { ethers } = require('ethers');
+      const { verifyJwtMiddleware } = require('./src/middleware/auth.cjs');
+      
+      // ABI for the SpendingLimits contract (minimal version for API endpoints)
+      const SPENDING_LIMITS_ABI = [
+        {
+          "inputs": [
+            {"internalType": "address", "name": "user", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"}
+          ],
+          "name": "checkLimit",
+          "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {"internalType": "address", "name": "user", "type": "address"}
+          ],
+          "name": "getCurrentSpent",
+          "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {"internalType": "address", "name": "user", "type": "address"}
+          ],
+          "name": "getPolicy",
+          "outputs": [
+            {
+              "components": [
+                {"internalType": "uint256", "name": "limit", "type": "uint256"},
+                {"internalType": "uint256", "name": "period", "type": "uint256"},
+                {"internalType": "bool", "name": "isActive", "type": "bool"}
+              ],
+              "internalType": "struct SpendingLimits.Policy",
+              "name": "",
+              "type": "tuple"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ];
+      
+      // Get spending limit info
+      fastify.post('/info', { preHandler: verifyJwtMiddleware }, async (request, reply) => {
+        try {
+          const { walletAddress, contractAddress, chainId, rpcUrl } = request.body;
+          
+          if (!walletAddress || !contractAddress) {
+            return reply.code(400).send({
+              success: false,
+              error: 'Wallet address and contract address are required'
+            });
+          }
+          
+          // Determine RPC URL based on chain ID
+          let providerRpcUrl = rpcUrl;
+          if (chainId === 84532) {
+            // Base Sepolia
+            providerRpcUrl = process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+          } else if (!providerRpcUrl) {
+            providerRpcUrl = process.env.RPC_URL || "https://eth-mainnet.g.alchemy.com/v2/your-api-key";
+          }
+          
+          // Create provider and contract instance
+          const provider = new ethers.providers.JsonRpcProvider(providerRpcUrl);
+          
+          // Create contract instance
+          const spendingLimitsContract = new ethers.Contract(
+            contractAddress,
+            SPENDING_LIMITS_ABI,
+            provider
+          );
+          
+          // Get current spent amount
+          const currentSpent = await spendingLimitsContract.getCurrentSpent(walletAddress);
+          
+          // Get policy details
+          const policy = await spendingLimitsContract.getPolicy(walletAddress);
+          
+          // Calculate remaining amount
+          const limit = ethers.utils.formatUnits(policy.limit, 18);
+          const spent = ethers.utils.formatUnits(currentSpent, 18);
+          const remaining = Math.max(0, parseFloat(limit) - parseFloat(spent)).toFixed(18);
+          
+          reply.send({
+            success: true,
+            walletAddress,
+            contractAddress,
+            spent,
+            limit,
+            remaining,
+            period: policy.period.toString(),
+            isActive: policy.isActive
+          });
+        } catch (error) {
+          console.error('Error getting spending limit info:', error);
+          reply.code(500).send({
+            success: false,
+            error: error.message
+          });
+        }
+      });
+    };
+    
+    fastify.register(spendingLimitsRoutes, { prefix: '/api/spending-limits' });
+    */
+    
     // Start the server
     const PORT = process.env.PORT || 3000;
     await fastify.listen({ port: PORT, host: '0.0.0.0' });

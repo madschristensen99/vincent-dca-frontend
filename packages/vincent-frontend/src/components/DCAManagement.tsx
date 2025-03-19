@@ -1,20 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { RegisterDCA } from './RegisterDCA';
 import { ActiveDCAs } from './ActiveDCAs';
-// Import the SDK for future use with actual implementation
-import { VincentSDK } from '@lit-protocol/vincent-sdk';
-// These imports will be needed when implementing the actual JWT generation
-// import { LitNodeClient } from '@lit-protocol/lit-node-client';
-// import { LitRelay } from '@lit-protocol/lit-relay';
-// import { EthWalletProvider } from '@lit-protocol/auth-browser';
-// import { AUTH_METHOD_SCOPE } from '@lit-protocol/constants';
-// import { LitActionResource, LitPKPResource, LIT_ABILITY } from '@lit-protocol/auth-helpers';
-// import { PKPEthersWallet } from '@lit-protocol/pkp-ethers';
-// import { ethers } from 'ethers';
-
-// Base Mainnet Etherscan API
-const BASE_API_URL = 'https://api.basescan.org/api';
-const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
+import { ERC20TransferTool } from './ERC20TransferTool';
+import SpendingLimitSwap from './SpendingLimitSwap';
+import { getStoredJWT } from '../config';
 
 // Define the backend API URL
 import { BACKEND_API_URL, createAuthHeaders } from '../config';
@@ -42,115 +31,70 @@ interface DCATransaction {
   purchasedAt: string;
 }
 
-// Initialize Vincent SDK - will be used in the future when we have proper PKP wallet implementation
-// @ts-ignore - Temporarily ignoring the unused variable warning
-const vincentSDK = new VincentSDK();
+interface Memecoin {
+  uuid: string;
+  symbol: string;
+  name: string;
+  iconUrl: string;
+  price: string;
+  change: string;
+  rank: number;
+  marketCap: string;
+  contractAddress?: string;
+}
 
-// TODO: Add function to retrieve all client PKPs
-/**
- * This function will retrieve all PKPs for a given client
- * It will be implemented once the Vincent SDK provides this functionality
- * 
- * Expected implementation:
- * async function getAllClientPKPs(clientId: string) {
- *   // Initialize Vincent SDK and authentication
- *   // Retrieve all PKPs associated with the client
- *   // Return the PKPs for use in JWT generation and DCA operations
- *   return vincentSDK.getClientPKPs(clientId);
- * }
- */
+// Base Mainnet Etherscan API
+const BASE_API_URL = 'https://api.basescan.org/api';
+const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY;
 
-// This function generates a JWT token using the Vincent SDK
+// This function gets the JWT token from localStorage
 const getToken = async (walletAddress: string) => {
   try {
-    // For development, use a mock token until we have the full PKP implementation set up
-    console.log('Using mock JWT token for development');
+    // Get the JWT from localStorage
+    const jwt = getStoredJWT();
     
-    // TODO: Implement the actual JWT generation using the code below
-    // This is commented out until we have the proper environment set up
-    /*
-    // TODO: In the future, we'll need to:
-    // 1. Retrieve the specific PKP for this wallet address from all client PKPs
-    // 2. Use that PKP to generate the JWT token
-    // const allPKPs = await getAllClientPKPs(clientId);
-    // const pkpForWallet = allPKPs.find(pkp => pkp.associatedWallet === walletAddress);
+    if (!jwt) {
+      throw new Error('No JWT token available. Please authenticate first.');
+    }
     
-    // Initialize the Lit Node Client
-    const litNetwork = 'datil-dev';
-    
-    const litNodeClient = new LitNodeClient({
-      litNetwork,
-      debug: false
-    });
-    await litNodeClient.connect();
-    
-    // Set up Lit Relay
-    const litRelay = new LitRelay({
-      relayUrl: LitRelay.getRelayUrl(litNetwork),
-      relayApiKey: process.env.NEXT_PUBLIC_LIT_RELAY_API_KEY || 'test-api-key',
-    });
-    
-    // Create a random wallet for testing
-    // In production, this would be the user's connected wallet
-    const ethersWallet = ethers.Wallet.createRandom();
-    
-    // Authenticate with the wallet
-    const authMethod = await EthWalletProvider.authenticate({
-      signer: ethersWallet,
-      litNodeClient
-    });
-    
-    // Mint a PKP with auth methods
-    const pkp = await litRelay.mintPKPWithAuthMethods([authMethod], {
-      pkpPermissionScopes: [[AUTH_METHOD_SCOPE.SignAnything]],
-    });
-    
-    // Get PKP session signatures
-    const sessionSigs = await litNodeClient.getPkpSessionSigs({
-      chain: 'ethereum',
-      expiration: new Date(Date.now() + 1000 * 60 * 15).toISOString(), // 15 minutes
-      pkpPublicKey: pkp.pkpPublicKey!,
-      authMethods: [authMethod],
-      resourceAbilityRequests: [
-        {
-          resource: new LitActionResource('*'),
-          ability: LIT_ABILITY.LitActionExecution,
-        },
-        {
-          resource: new LitPKPResource('*'),
-          ability: LIT_ABILITY.PKPSigning,
-        },
-      ],
-    });
-    
-    // Create a PKP Ethers Wallet
-    const pkpWallet = new PKPEthersWallet({
-      controllerSessionSigs: sessionSigs,
-      pkpPubKey: pkp.pkpPublicKey!,
-      litNodeClient,
-    });
-    
-    // Create the JWT token using the new API format
-    const jwt = await vincentSDK.createSignedJWT({
-      pkpWallet: pkpWallet,
-      pkp: { publicKey: pkp.pkpPublicKey },
-      payload: { 
-        walletAddress: walletAddress,
-        timestamp: Date.now(),
-      },
-      expiresInMinutes: 10, // 10 minutes expiration
-      audience: "vincent-dca-service" // Audience
-    });
-    
-    // Verify the JWT token
-    const isValid = await vincentSDK.verifyJWT("vincent-dca-service");
-    console.log("JWT valid:", isValid);
+    // Decode the JWT to get the ethAddress
+    try {
+      const payload = jwt.split('.')[1];
+      const decodedPayload = JSON.parse(atob(payload));
+      
+      // Log the ethAddress from the JWT
+      if (decodedPayload.ethAddress) {
+        console.log('Getting JWT token for Ethereum address:', decodedPayload.ethAddress);
+      } else if (decodedPayload.pkpPublicKey) {
+        // If we have a PKP public key, derive the Ethereum address properly
+        const pkpKey = decodedPayload.pkpPublicKey;
+        
+        // Import ethers dynamically if needed
+        const { ethers } = await import('ethers');
+        
+        try {
+          // Remove '0x' prefix if present
+          const cleanPkpKey = pkpKey.startsWith('0x') ? pkpKey.substring(2) : pkpKey;
+          
+          // Create a hex string of the public key
+          const publicKeyHex = `0x${cleanPkpKey}`;
+          
+          // Use ethers.js to compute the address from the public key
+          const derivedAddress = ethers.utils.computeAddress(publicKeyHex).toLowerCase();
+          console.log('Derived Ethereum address from PKP key:', derivedAddress);
+        } catch (derivationError) {
+          console.error('Error deriving Ethereum address:', derivationError);
+          console.log('Getting JWT token for wallet address:', walletAddress);
+        }
+      } else {
+        console.log('Getting JWT token for wallet address:', walletAddress);
+      }
+    } catch (decodeError) {
+      console.error('Error decoding JWT:', decodeError);
+      console.log('Getting JWT token for wallet address:', walletAddress);
+    }
     
     return jwt;
-    */
-    
-    // Return mock token for now
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3YWxsZXRBZGRyZXNzIjoiMHhENDM4M2MxNTE1OEIxMWE0RmE1MUY0ODlBQkNCM0Q0RTQzNTExYjBhIiwicm9sZUlkIjoiYTViODM0NjctNGFjOS00OWI2LWI0NWMtMjg1NTJmNTFiMDI2IiwiaWF0IjoxNzExMTM0NDY1LCJleHAiOjE3MTExMzgwNjV9.placeholder_signature";
   } catch (error) {
     console.error('Error getting JWT token:', error);
     throw error;
@@ -263,7 +207,7 @@ function TransactionList({ transactions, dcaTransactions }: {
   );
 }
 
-type Tab = 'register' | 'transactions' | 'view';
+type Tab = 'register' | 'transactions' | 'view' | 'tools' | 'spending-limits';
 
 interface DCAManagementViewProps {
   walletAddress: string;
@@ -359,7 +303,7 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
     }
   }, [activeTab, fetchTransactions]);
 
-  const handleDCASubmit = async (amount: number, frequency: string) => {
+  const handleDCASubmit = async (amount: number, frequency: string, tokenInfo: Memecoin | null) => {
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
@@ -402,20 +346,33 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
         return;
       }
       
+      // Prepare the request body with token information if available
+      const requestBody: any = {
+        walletAddress: walletAddress,
+        purchaseIntervalSeconds,
+        purchaseAmount: formattedAmount,
+        active: true,
+      };
+      
+      // Add token information if available
+      if (tokenInfo) {
+        requestBody.tokenInfo = {
+          symbol: tokenInfo.symbol,
+          name: tokenInfo.name,
+          contractAddress: tokenInfo.contractAddress || '',
+          uuid: tokenInfo.uuid
+        };
+      }
+      
       const response = await fetch(`${BACKEND_API_URL}/dca/schedules`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          walletAddress: walletAddress,
-          purchaseIntervalSeconds,
-          purchaseAmount: formattedAmount,
-          active: true,
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       if (response.ok) {
         const data = await response.json();
-        setSuccessMessage(`Successfully created DCA schedule with ID: ${data.scheduleId}`);
+        setSuccessMessage(`Successfully created DCA schedule for ${tokenInfo?.symbol || 'top memecoin'} with ID: ${data.scheduleId}`);
         // Switch to the view tab to show the newly created schedule
         setActiveTab('view');
       } else {
@@ -445,21 +402,63 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
       case 'register':
         return (
           <div className="tab-content">
-            <h2>Start DCA</h2>
-            <p>This system will automatically purchase cryptocurrency at regular intervals based on your schedule.</p>
-            {successMessage && <div className="success-message">{successMessage}</div>}
-            {error && <div className="error-message">{error}</div>}
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>Start DCA with Top Base Memecoin</h2>
+            <p style={{ textAlign: 'center', marginBottom: '20px', maxWidth: '600px', margin: '0 auto 20px' }}>
+              This system will automatically purchase the top memecoin on Base at regular intervals based on your schedule.
+            </p>
+            {successMessage && (
+              <div style={{ 
+                backgroundColor: '#f6ffed', 
+                border: '1px solid #b7eb8f', 
+                color: '#52c41a', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                marginBottom: '16px',
+                textAlign: 'center',
+                maxWidth: '600px',
+                margin: '0 auto 20px'
+              }}>
+                {successMessage}
+              </div>
+            )}
+            {error && (
+              <div style={{ 
+                backgroundColor: '#fff1f0', 
+                border: '1px solid #ffa39e', 
+                color: '#ff4d4f', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                marginBottom: '16px',
+                textAlign: 'center',
+                maxWidth: '600px',
+                margin: '0 auto 20px'
+              }}>
+                {error}
+              </div>
+            )}
             <RegisterDCA onSubmit={handleDCASubmit} isLoading={isLoading} />
           </div>
         );
       case 'transactions':
         return (
           <div className="tab-content">
-            <h2>DCA Transactions</h2>
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>DCA Transactions</h2>
             {isLoading ? (
-              <div className="loading">Loading transactions...</div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>Loading transactions...</div>
             ) : error ? (
-              <div className="error">{error}</div>
+              <div style={{ 
+                backgroundColor: '#fff1f0', 
+                border: '1px solid #ffa39e', 
+                color: '#ff4d4f', 
+                padding: '12px', 
+                borderRadius: '6px', 
+                marginBottom: '16px',
+                textAlign: 'center',
+                maxWidth: '600px',
+                margin: '0 auto 20px'
+              }}>
+                {error}
+              </div>
             ) : (
               <TransactionList 
                 transactions={transactions} 
@@ -471,51 +470,139 @@ function DCAManagementView({ walletAddress }: DCAManagementViewProps) {
       case 'view':
         return (
           <div className="tab-content">
-            <h2>View DCAs</h2>
-            <ActiveDCAs walletAddress={walletAddress} />
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>Active DCA Schedules</h2>
+            <ActiveDCAs 
+              walletAddress={walletAddress} 
+              jwtToken={jwtToken || ''} 
+              onRefresh={() => {
+                // After canceling a schedule, refresh transactions
+                if (activeTab === 'view') {
+                  fetchTransactions();
+                }
+              }}
+            />
           </div>
         );
+      case 'tools':
+        return (
+          <div className="tab-content">
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>ERC20 Transfer Tool</h2>
+            <ERC20TransferTool 
+              jwtToken={jwtToken || ''} 
+              walletAddress={walletAddress} 
+            />
+          </div>
+        );
+      case 'spending-limits':
+        return (
+          <div className="tab-content">
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>Wallet Balance</h2>
+            <SpendingLimitSwap 
+              jwtToken={jwtToken || ''} 
+              walletAddress={walletAddress} 
+              spendingLimitContractAddress=""
+            />
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="card dca-management">
-      <header>
-        <h1>Automated Dollar Cost Averaging</h1>
-        <div className="header-actions">
-          <a href="/dashboard" className="dashboard-link">View Server Dashboard</a>
-        </div>
-        <div className="tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'register' ? 'active' : ''}`}
-            onClick={() => setActiveTab('register')}
-          >
-            Start DCA
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'transactions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('transactions')}
-          >
-            See DCA Transactions
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'view' ? 'active' : ''}`}
-            onClick={() => setActiveTab('view')}
-          >
-            View DCAs
-          </button>
-        </div>
-      </header>
-      <main>
-        {renderTabContent()}
-      </main>
+    <div className="dca-management" style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
+      <div className="tabs" style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: '30px',
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <button 
+          className={`tab ${activeTab === 'register' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('register')}
+          style={{ 
+            padding: '10px 20px', 
+            border: 'none', 
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'register' ? '#fa8c16' : '#f0f0f0',
+            color: activeTab === 'register' ? 'white' : '#333',
+            fontWeight: activeTab === 'register' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          Start DCA
+        </button>
+        <button 
+          className={`tab ${activeTab === 'view' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('view')}
+          style={{ 
+            padding: '10px 20px', 
+            border: 'none', 
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'view' ? '#fa8c16' : '#f0f0f0',
+            color: activeTab === 'view' ? 'white' : '#333',
+            fontWeight: activeTab === 'view' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          Active DCAs
+        </button>
+        <button 
+          className={`tab ${activeTab === 'transactions' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('transactions')}
+          style={{ 
+            padding: '10px 20px', 
+            border: 'none', 
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'transactions' ? '#fa8c16' : '#f0f0f0',
+            color: activeTab === 'transactions' ? 'white' : '#333',
+            fontWeight: activeTab === 'transactions' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          Transactions
+        </button>
+        <button 
+          className={`tab ${activeTab === 'tools' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('tools')}
+          style={{ 
+            padding: '10px 20px', 
+            border: 'none', 
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'tools' ? '#fa8c16' : '#f0f0f0',
+            color: activeTab === 'tools' ? 'white' : '#333',
+            fontWeight: activeTab === 'tools' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          Transfer Tool
+        </button>
+        <button 
+          className={`tab ${activeTab === 'spending-limits' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('spending-limits')}
+          style={{ 
+            padding: '10px 20px', 
+            border: 'none', 
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'spending-limits' ? '#fa8c16' : '#f0f0f0',
+            color: activeTab === 'spending-limits' ? 'white' : '#333',
+            fontWeight: activeTab === 'spending-limits' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          Wallet Balance
+        </button>
+      </div>
+      
+      {renderTabContent()}
     </div>
   );
 }
 
 export function DCAManagement({ walletAddress }: { walletAddress: string }) {
   return (
-    <div className="dca-management-container">
+    <div>
       <DCAManagementView walletAddress={walletAddress} />
     </div>
   );

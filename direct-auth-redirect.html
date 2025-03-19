@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Vincent Auth Redirect</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vincent Auth Direct Redirect</h1>
+    <p>Click the button below to redirect directly to Vincent Auth with the correct app ID:</p>
+    
+    <button id="redirectButton">Redirect to Vincent Auth</button>
+    
+    <h2>Debug Information:</h2>
+    <pre id="debugInfo">No debug info yet</pre>
+    
+    <script>
+        document.getElementById('redirectButton').addEventListener('click', function() {
+            const authUrl = 'https://vincent-auth.vercel.app/?appId=15';
+            
+            // Log debug info
+            document.getElementById('debugInfo').textContent = 
+                `Redirecting to: ${authUrl}\n` +
+                `Current time: ${new Date().toISOString()}`;
+            
+            // Redirect
+            window.location.href = authUrl;
+        });
+    </script>
+</body>
+</html>

@@ -17,6 +17,7 @@
     "@lit-protocol/constants": "^7.0.6",
     "@lit-protocol/contracts-sdk": "^7.0.6",
     "@lit-protocol/lit-node-client": "^7.0.6",
+    "@lit-protocol/vincent-sdk": "^0.1.0-3",
     "agenda": "^5.0.0",
     "axios": "^1.6.7",
     "dotenv": "^16.4.5",

@@ -1,0 +1,146 @@
+/* ERC20 Transfer Tool Styles */
+.erc20-transfer-tool {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+  border: 1px solid #d0e6e2;
+}
+
+.erc20-transfer-tool .section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #2c7a7b;
+}
+
+.erc20-transfer-tool .section-description {
+  color: #4a5568;
+  margin-bottom: 24px;
+  font-size: 16px;
+}
+
+.erc20-transfer-tool .form-container {
+  margin-bottom: 24px;
+}
+
+.erc20-transfer-tool .form-group {
+  margin-bottom: 20px;
+}
+
+.erc20-transfer-tool .form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.erc20-transfer-tool .form-group-half {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.erc20-transfer-tool .form-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #2d3748;
+}
+
+.erc20-transfer-tool .form-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d0e6e2;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.erc20-transfer-tool .form-input:focus {
+  outline: none;
+  border-color: #2c7a7b;
+  box-shadow: 0 0 0 2px rgba(44, 122, 123, 0.2);
+}
+
+.erc20-transfer-tool .form-hint {
+  display: block;
+  font-size: 14px;
+  color: #718096;
+  margin-top: 4px;
+}
+
+.erc20-transfer-tool .btn-full {
+  width: 100%;
+}
+
+.erc20-transfer-tool .btn-primary {
+  background-color: #2c7a7b;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.erc20-transfer-tool .btn-primary:hover {
+  background-color: #285e61;
+}
+
+.erc20-transfer-tool .btn-primary:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.erc20-transfer-tool .error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #fed7d7;
+  color: #c53030;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 24px;
+}
+
+.erc20-transfer-tool .error-message svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.erc20-transfer-tool .success-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #c6f6d5;
+  color: #276749;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 24px;
+}
+
+.erc20-transfer-tool .success-message svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.erc20-transfer-tool .success-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.erc20-transfer-tool .transaction-details {
+  margin-top: 12px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.erc20-transfer-tool .transaction-json {
+  font-family: monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

@@ -1,19 +1,18 @@
 {
-  "name": "@lit-protocol/vincent-contracts",
-  "version": "0.0.1",
-  "dependencies": {
-    "tslib": "^2.3.0"
-  },
-  "type": "commonjs",
-  "main": "./dist/index.js",
-  "typings": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "!**/*.tsbuildinfo"
-  ],
-  "nx": {
-    "sourceRoot": "packages/vincent-contracts/src",
-    "projectType": "library",
-    "name": "vincent-contracts"
+  "name": "@vincent/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {},
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "@nx/js": "20.4.6",
+    "@swc-node/register": "~1.9.1",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "nx": "20.4.6",
+    "prettier": "^2.6.2",
+    "tslib": "^2.3.0",
+    "typescript": "~5.7.2"
   }
 }

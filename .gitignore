@@ -2,12 +2,10 @@
 
 # Ignore .env files
 .env
-**/.env
 .env.local
 .env.development
 .env.production
 .env.test
-
 
 # compiled output
 dist
@@ -55,3 +53,12 @@ test-output
 .law-signer-admin-storage
 .law-signer-delegatee-storage
 .law-cli-storage
+
+# Embedded Git repositories
+packages/vincent-frontend/vincentExampleApp
+packages/vincent-service-dca/tools/SpendingLimitsContract-main
+
+# Additional .env files in subdirectories
+**/.env
+**/.env.*
+**/src/.env

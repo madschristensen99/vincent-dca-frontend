@@ -84,97 +84,18 @@ const vincentSDK = new VincentSDK();
  * }
  */
 
-// This function generates a JWT token using the Vincent SDK
+// This function gets the JWT token from localStorage
 const getToken = async (walletAddress: string) => {
   try {
-    // For development, use a mock token until we have the full PKP implementation set up
-    console.log('Using mock JWT token for development');
+    // Get the JWT token from localStorage
+    const storedJwt = localStorage.getItem('vincent_jwt');
+    if (storedJwt) {
+      console.log('Using JWT token from localStorage');
+      return storedJwt;
+    }
     
-    // TODO: Implement the actual JWT generation using the code below
-    // This is commented out until we have the proper environment set up
-    /*
-    // TODO: In the future, we'll need to:
-    // 1. Retrieve the specific PKP for this wallet address from all client PKPs
-    // 2. Use that PKP to generate the JWT token
-    // const allPKPs = await getAllClientPKPs(clientId);
-    // const pkpForWallet = allPKPs.find(pkp => pkp.associatedWallet === walletAddress);
-    
-    // Initialize the Lit Node Client
-    const litNetwork = 'datil-dev';
-    
-    const litNodeClient = new LitNodeClient({
-      litNetwork,
-      debug: false
-    });
-    await litNodeClient.connect();
-    
-    // Set up Lit Relay
-    const litRelay = new LitRelay({
-      relayUrl: LitRelay.getRelayUrl(litNetwork),
-      relayApiKey: process.env.NEXT_PUBLIC_LIT_RELAY_API_KEY || 'test-api-key',
-    });
-    
-    // Create a random wallet for testing
-    // In production, this would be the user's connected wallet
-    const ethersWallet = ethers.Wallet.createRandom();
-    
-    // Authenticate with the wallet
-    const authMethod = await EthWalletProvider.authenticate({
-      signer: ethersWallet,
-      litNodeClient
-    });
-    
-    // Mint a PKP with auth methods
-    const pkp = await litRelay.mintPKPWithAuthMethods([authMethod], {
-      pkpPermissionScopes: [[AUTH_METHOD_SCOPE.SignAnything]],
-    });
-    
-    // Get PKP session signatures
-    const sessionSigs = await litNodeClient.getPkpSessionSigs({
-      chain: 'ethereum',
-      expiration: new Date(Date.now() + 1000 * 60 * 15).toISOString(), // 15 minutes
-      pkpPublicKey: pkp.pkpPublicKey!,
-      authMethods: [authMethod],
-      resourceAbilityRequests: [
-        {
-          resource: new LitActionResource('*'),
-          ability: LIT_ABILITY.LitActionExecution,
-        },
-        {
-          resource: new LitPKPResource('*'),
-          ability: LIT_ABILITY.PKPSigning,
-        },
-      ],
-    });
-    
-    // Create a PKP Ethers Wallet
-    const pkpWallet = new PKPEthersWallet({
-      controllerSessionSigs: sessionSigs,
-      pkpPubKey: pkp.pkpPublicKey!,
-      litNodeClient,
-    });
-    
-    // Create the JWT token using the new API format
-    const jwt = await vincentSDK.createSignedJWT({
-      pkpWallet: pkpWallet,
-      pkp: { publicKey: pkp.pkpPublicKey },
-      payload: { 
-        walletAddress: walletAddress,
-        timestamp: Date.now(),
-      },
-      expiresInMinutes: 10, // 10 minutes expiration
-      audience: "vincent-dca-service" // Audience
-    });
-    
-    // Verify the JWT token
-    const isValid = await vincentSDK.verifyJWT("vincent-dca-service");
-    console.log("JWT valid:", isValid);
-    
-    return jwt;
-    */
-    
-    // Return mock token for now
-    return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3YWxsZXRBZGRyZXNzIjoiMHhENDM4M2MxNTE1OEIxMWE0RmE1MUY0ODlBQkNCM0Q0RTQzNTExYjBhIiwicm9sZUlkIjoiYTViODM0NjctNGFjOS00OWI2LWI0NWMtMjg1NTJmNTFiMDI2IiwiaWF0IjoxNzExMTM0NDY1LCJleHAiOjE3MTExMzgwNjV9.placeholder_signature";
+    console.error('No JWT token found in localStorage');
+    throw new Error('Authentication required. Please authenticate with Vincent Auth.');
   } catch (error) {
     console.error('Error getting JWT token:', error);
     throw error;
@@ -266,8 +187,15 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const token = await getToken(walletAddress);
-        setJwtToken(token);
+        // Get JWT token from localStorage
+        const storedJwt = localStorage.getItem('vincent_jwt');
+        if (storedJwt) {
+          console.log('Using JWT token from localStorage');
+          setJwtToken(storedJwt);
+        } else {
+          console.error('No JWT token found in localStorage');
+          throw new Error('Authentication required. Please authenticate with Vincent Auth.');
+        }
       } catch (err) {
         console.error('Error getting JWT token:', err);
         setError('Failed to authenticate. Please try again.');
@@ -362,7 +290,7 @@ export function ActiveDCAs({ walletAddress }: { walletAddress: string }) {
     setError(null);
 
     try {
-      const response = await fetch(`${BACKEND_API_URL}/dca/schedules?walletAddress=${walletAddress}`, {
+      const response = await fetch(`${BACKEND_API_URL}/dca/schedules/${walletAddress}`, {
         method: 'GET',
         headers: createAuthHeaders(jwtToken)
       });

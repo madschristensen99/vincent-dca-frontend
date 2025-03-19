@@ -7,6 +7,15 @@ const nextConfig = {
   },
   // Ensure Next.js knows this is a standalone application
   output: 'standalone',
+  // Add rewrites to proxy API requests to the backend service
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3000/api/:path*',
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

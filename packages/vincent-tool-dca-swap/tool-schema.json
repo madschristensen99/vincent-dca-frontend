@@ -1,0 +1,18 @@
+{
+  "toolIpfsCid": "QmUHkcZ6xhiyn362kHKDkNJxudspBjrX5j3XiG5LZaUZB5",
+  "policies": [
+    {
+      "policyIpfsCid": "QmYD9Lf2XrrTUePMhbJc9bQhHbwJ6N3DuNbU7hSzj78tTF",
+      "policySchemaIpfsCid": "QmPolicySchemaPlaceholder",
+      "parameterNames": [
+        "privateKey",
+        "rpcUrl",
+        "chainId",
+        "tokenIn",
+        "tokenOut",
+        "amountIn",
+        "spendingLimitContractAddress"
+      ]
+    }
+  ]
+}

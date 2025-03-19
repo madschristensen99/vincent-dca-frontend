@@ -57,5 +57,11 @@
         }
       }
     }
+  },
+  "dependencies": {
+    "@lit-protocol/auth-helpers": "^7.0.8",
+    "@lit-protocol/constants": "^7.0.8",
+    "dotenv": "^16.4.7",
+    "form-data": "^4.0.2"
   }
 }

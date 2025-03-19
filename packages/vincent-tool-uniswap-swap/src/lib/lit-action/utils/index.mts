@@ -8,3 +8,5 @@ export * from './estimate-gas-limit.mts';
 export * from './create-tx.mts';
 export * from './sign-tx.mts';
 export * from './broadcast-tx.mts';
+export * from './get-token-price.mts';
+export * from './spending-limits.mts';
