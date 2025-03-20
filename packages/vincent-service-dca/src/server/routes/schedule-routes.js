@@ -111,15 +111,27 @@ export default async function scheduleRoutes(fastify, options) {
       }
 
       // Create a new schedule
+      // Note: We no longer store specific token info in the schedule
+      // as we'll always fetch the top memecoin at execution time
       const schedule = new Schedule({
-        ...scheduleData,
+        walletAddress: normalizedWalletAddress,
+        purchaseIntervalSeconds: scheduleData.purchaseIntervalSeconds,
+        purchaseAmount: scheduleData.purchaseAmount,
         active: true,
         registeredAt: new Date(),
+        // Initialize with empty tokenInfo since we'll dynamically fetch the top memecoin
+        tokenInfo: {
+          symbol: 'TOP_MEMECOIN',
+          name: 'Top Memecoin (Dynamic)',
+          contractAddress: '',
+          uuid: ''
+        },
+        transactions: []
       });
       
       await schedule.save();
       
-      console.log(`Successfully created new DCA schedule for wallet ${normalizedWalletAddress}`);
+      console.log(`Successfully created new DCA schedule for wallet ${normalizedWalletAddress} to buy the top memecoin at each interval`);
       reply.code(201).send(schedule);
     } catch (error) {
       console.error(`Error creating DCA schedule: ${error}`);

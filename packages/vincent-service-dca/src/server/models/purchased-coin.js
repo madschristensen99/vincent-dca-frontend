@@ -15,27 +15,18 @@ const purchasedCoinSchema = new mongoose.Schema({
     match: /^0x[a-fA-F0-9]{40}$/,
     index: true,
   },
-  symbol: {
+  tokenSymbol: {
     type: String,
     required: true,
   },
-  name: {
+  tokenName: {
     type: String,
     required: true,
   },
-  coinAddress: {
-    type: String,
-    required: false,
-  },
-  price: {
+  tokenAddress: {
     type: String,
     required: true,
-    validate: {
-      validator: function (v) {
-        return /^\d*\.?\d+$/.test(v);
-      },
-      message: 'Price must be a valid decimal number',
-    },
+    match: /^0x[a-fA-F0-9]{40}$/,
   },
   purchaseAmount: {
     type: String,
@@ -47,19 +38,24 @@ const purchasedCoinSchema = new mongoose.Schema({
       message: 'Purchase amount must be a valid decimal number',
     },
   },
-  success: {
-    type: Boolean,
-    required: true,
+  tokenAmount: {
+    type: String,
+    required: false,
   },
   txHash: {
     type: String,
     required: false,
   },
+  status: {
+    type: String,
+    enum: ['completed', 'failed', 'pending'],
+    default: 'pending',
+  },
   error: {
     type: String,
     required: false,
   },
-  purchasedAt: {
+  purchaseDate: {
     type: Date,
     required: true,
     default: Date.now,
@@ -67,9 +63,9 @@ const purchasedCoinSchema = new mongoose.Schema({
 });
 
 // Create indexes for efficient queries
-purchasedCoinSchema.index({ walletAddress: 1, purchasedAt: -1 });
-purchasedCoinSchema.index({ scheduleId: 1, purchasedAt: -1 });
-purchasedCoinSchema.index({ scheduleId: 1, success: 1 });
+purchasedCoinSchema.index({ walletAddress: 1, purchaseDate: -1 });
+purchasedCoinSchema.index({ scheduleId: 1, purchaseDate: -1 });
+purchasedCoinSchema.index({ scheduleId: 1, status: 1 });
 
 const PurchasedCoin = mongoose.model('PurchasedCoin', purchasedCoinSchema);
 

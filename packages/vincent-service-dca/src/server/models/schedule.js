@@ -1,6 +1,47 @@
 // Schedule model
 import mongoose from 'mongoose';
 
+const transactionSchema = new mongoose.Schema({
+  date: {
+    type: Date,
+    required: true,
+    default: Date.now
+  },
+  amount: {
+    type: String,
+    required: true
+  },
+  tokenSymbol: {
+    type: String,
+    required: false
+  },
+  tokenName: {
+    type: String,
+    required: false
+  },
+  tokenAddress: {
+    type: String,
+    required: false
+  },
+  tokenAmount: {
+    type: String,
+    required: false
+  },
+  txHash: {
+    type: String,
+    required: false
+  },
+  status: {
+    type: String,
+    enum: ['completed', 'failed', 'pending'],
+    default: 'pending'
+  },
+  error: {
+    type: String,
+    required: false
+  }
+});
+
 const scheduleSchema = new mongoose.Schema({
   walletAddress: {
     type: String,
@@ -38,6 +79,8 @@ const scheduleSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // We'll keep this for backward compatibility but it won't be used
+  // for determining which token to buy in the new implementation
   tokenInfo: {
     symbol: {
       type: String,
@@ -55,7 +98,9 @@ const scheduleSchema = new mongoose.Schema({
       type: String,
       default: '',
     }
-  }
+  },
+  // Add transactions array to store history of purchases
+  transactions: [transactionSchema]
 });
 
 // Create indexes for efficient queries

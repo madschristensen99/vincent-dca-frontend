@@ -1,5 +1,63 @@
 // Vincent DCA Tool Lit Action (Lit Protocol Format)
 
+// Import utility functions
+// Note: In Lit Actions, we can't directly import from external files
+// So we'll keep the utility functions inline but mark them as coming from utils.js
+function formatPrivateKey(key) {
+  // Implementation from utils.js
+  if (!key) return null;
+  
+  // Remove any whitespace
+  let formattedKey = key.trim();
+  
+  // Handle case where key might have duplicate 0x prefix
+  if (formattedKey.startsWith('0x0x')) {
+    formattedKey = '0x' + formattedKey.substring(4);
+  }
+  
+  // Add 0x prefix if missing
+  if (!formattedKey.startsWith('0x')) {
+    formattedKey = '0x' + formattedKey;
+  }
+  
+  // If key is too long (more than 66 chars for a standard Ethereum private key)
+  // try to extract the correct portion
+  if (formattedKey.length > 66) {
+    // Try to extract a valid 64-character hex string after the 0x prefix
+    const hexPart = formattedKey.substring(2);
+    if (hexPart.length >= 64) {
+      formattedKey = '0x' + hexPart.substring(0, 64);
+    }
+  }
+  
+  return formattedKey;
+}
+
+function getUniswapAddresses(chainId, params) {
+  // Implementation from utils.js
+  // Use params if provided (override chainId-based defaults)
+  if (params.uniswapQuoterAddress && params.uniswapRouterAddress) {
+    return {
+      UNISWAP_V3_QUOTER: params.uniswapQuoterAddress,
+      UNISWAP_V3_ROUTER: params.uniswapRouterAddress
+    };
+  }
+  
+  // Base Mainnet (chainId: 8453)
+  if (chainId === '8453' || chainId === 8453) {
+    return {
+      UNISWAP_V3_QUOTER: '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a',
+      UNISWAP_V3_ROUTER: '0x2626664c2603336e57b271c5c0b26f421741e481'
+    };
+  }
+  
+  // Default to Base Mainnet
+  return {
+    UNISWAP_V3_QUOTER: '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a',
+    UNISWAP_V3_ROUTER: '0x2626664c2603336e57b271c5c0b26f421741e481'
+  };
+}
+
 (async () => {
   try {
     // Parse parameters from Lit
@@ -115,6 +173,9 @@
   }
 })();
 
+// Helper functions for the Lit Action
+
+// Execute the swap transaction
 async function executeSwap(params) {
   try {
     console.log(`Executing swap from ${params.tokenIn} to ${params.tokenOut}`);
@@ -141,13 +202,13 @@ async function executeSwap(params) {
       provider,
       params.tokenIn,
       params.tokenOut,
-      params.amountIn, // Use the amountIn parameter directly
+      params.amountIn,
       wallet.address,
       params.wethAddress
     );
     
     // Get Uniswap router and quoter addresses
-    const { UNISWAP_V3_QUOTER, UNISWAP_V3_ROUTER } = getUniswapQuoterRouter(params.chainId, params);
+    const { UNISWAP_V3_QUOTER, UNISWAP_V3_ROUTER } = getUniswapAddresses(params.chainId, params);
     
     // For ETH input, we need to use WETH address for the quoter
     const tokenInAddress = tokenInfo.tokenIn.address === 'ETH' ? params.wethAddress : tokenInfo.tokenIn.address;
@@ -178,225 +239,8 @@ async function executeSwap(params) {
     
     console.log(`Best fee tier: ${bestFee}, Minimum output amount: ${amountOutMin}`);
     
-    // Use runOnce to ensure only one node executes the transaction
+    // Execute the transaction directly instead of using runOnce
     try {
-      const runOnceResult = await Lit.Actions.runOnce({
-        actionId: "swap-transaction",
-        callback: function() {
-          return new Promise(async (resolve, reject) => {
-            try {
-              // Get current gas price
-              const gasPrice = await provider.getGasPrice();
-              console.log(`Current gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} Gwei`);
-              
-              // Get current nonce
-              const nonce = await provider.getTransactionCount(wallet.address);
-              console.log(`Current nonce: ${nonce}`);
-              
-              // Prepare gas data
-              const gasData = {
-                gasPrice,
-                nonce
-              };
-              
-              // For ERC20 tokens, we need to approve the router first
-              if (tokenInfo.tokenIn.address !== 'ETH') {
-                console.log(`Approving ${tokenInfo.tokenIn.symbol} for Uniswap router...`);
-                
-                // Estimate gas for approval
-                const approvalGasLimit = await tokenInfo.tokenIn.contract.estimateGas.approve(
-                  UNISWAP_V3_ROUTER,
-                  tokenInfo.tokenIn.amount
-                ).catch(error => {
-                  console.log('Error estimating approval gas:', error);
-                  return ethers.BigNumber.from('100000'); // Default gas limit for approval
-                });
-                
-                console.log(`Estimated approval gas limit: ${approvalGasLimit.toString()}`);
-                
-                // Create and sign approval transaction
-                const approvalTx = await createTransaction(
-                  UNISWAP_V3_ROUTER,
-                  wallet.address,
-                  approvalGasLimit,
-                  tokenInfo.tokenIn.amount,
-                  gasData,
-                  true,
-                  tokenInfo.tokenIn.contract,
-                  null,
-                  null
-                );
-                
-                console.log('Signing approval transaction...');
-                const signedApprovalTx = await wallet.signTransaction(approvalTx);
-                
-                console.log('Sending approval transaction...');
-                const approvalTxResponse = await provider.sendTransaction(signedApprovalTx);
-                
-                console.log(`Approval transaction sent: ${approvalTxResponse.hash}`);
-                console.log('Waiting for approval confirmation...');
-                
-                const approvalReceipt = await approvalTxResponse.wait();
-                console.log(`Approval confirmed in block ${approvalReceipt.blockNumber}`);
-                
-                // Update nonce for the swap transaction
-                gasData.nonce = nonce + 1;
-              }
-              
-              // Estimate gas for swap
-              let swapGasLimit;
-              
-              if (tokenInfo.tokenIn.address === 'ETH') {
-                // For ETH input, we need to use a different method to estimate gas
-                const routerAbi = [
-                  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)'
-                ];
-                
-                const routerContract = new ethers.Contract(UNISWAP_V3_ROUTER, routerAbi, provider);
-                
-                const deadline = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
-                
-                const exactInputSingleParams = {
-                  tokenIn: params.wethAddress,
-                  tokenOut: tokenInfo.tokenOut.address,
-                  fee: bestFee,
-                  recipient: params.recipient || wallet.address,
-                  deadline: deadline,
-                  amountIn: tokenInfo.tokenIn.amount,
-                  amountOutMinimum: amountOutMin,
-                  sqrtPriceLimitX96: 0
-                };
-                
-                try {
-                  swapGasLimit = await routerContract.estimateGas.exactInputSingle(
-                    exactInputSingleParams,
-                    { value: tokenInfo.tokenIn.amount, from: wallet.address }
-                  );
-                } catch (error) {
-                  console.log('Error estimating swap gas:', error);
-                  swapGasLimit = ethers.BigNumber.from('500000'); // Default gas limit for swap
-                }
-              } else {
-                // For ERC20 input, we can estimate gas normally
-                const routerAbi = [
-                  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external returns (uint256 amountOut)'
-                ];
-                
-                const routerContract = new ethers.Contract(UNISWAP_V3_ROUTER, routerAbi, provider);
-                
-                const deadline = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
-                
-                const exactInputSingleParams = {
-                  tokenIn: tokenInfo.tokenIn.address,
-                  tokenOut: tokenInfo.tokenOut.address,
-                  fee: bestFee,
-                  recipient: params.recipient || wallet.address,
-                  deadline: deadline,
-                  amountIn: tokenInfo.tokenIn.amount,
-                  amountOutMinimum: amountOutMin,
-                  sqrtPriceLimitX96: 0
-                };
-                
-                try {
-                  swapGasLimit = await routerContract.estimateGas.exactInputSingle(
-                    exactInputSingleParams,
-                    { from: wallet.address }
-                  );
-                } catch (error) {
-                  console.log('Error estimating swap gas:', error);
-                  swapGasLimit = ethers.BigNumber.from('500000'); // Default gas limit for swap
-                }
-              }
-              
-              console.log(`Estimated swap gas limit: ${swapGasLimit.toString()}`);
-              
-              // Add a buffer to the gas limit
-              const gasLimitBuffer = 1.2; // 20% buffer
-              const updatedGasLimit = ethers.BigNumber.from(Math.floor(swapGasLimit.toNumber() * gasLimitBuffer));
-              
-              // Update gas data with the new gas limit
-              const updatedGasData = {
-                ...gasData,
-                gasLimit: updatedGasLimit
-              };
-              
-              // Create and sign the swap transaction
-              const swapTx = await createTransaction(
-                UNISWAP_V3_ROUTER,
-                wallet.address,
-                updatedGasLimit,
-                tokenInfo.tokenIn.amount,
-                updatedGasData,
-                false,
-                tokenInfo.tokenIn.contract,
-                tokenInfo.tokenOut.address,
-                params.recipient || wallet.address,
-                { fee: bestFee, amountOutMin, wethAddress: params.wethAddress }
-              );
-              
-              console.log('Signing swap transaction...');
-              const signedSwapTx = await wallet.signTransaction(swapTx);
-              
-              console.log('Sending swap transaction...');
-              const swapTxResponse = await provider.sendTransaction(signedSwapTx);
-              
-              console.log(`Swap transaction sent: ${swapTxResponse.hash}`);
-              console.log('Waiting for swap confirmation...');
-              
-              const swapReceipt = await swapTxResponse.wait();
-              
-              if (swapReceipt.status === 0) {
-                reject(new Error(`Transaction failed: ${swapTxResponse.hash}`));
-                return;
-              }
-              
-              console.log(`Swap confirmed in block ${swapReceipt.blockNumber}`);
-              
-              // Return the transaction details
-              resolve({
-                success: true,
-                transactionHash: swapTxResponse.hash,
-                blockNumber: swapReceipt.blockNumber,
-                gasUsed: swapReceipt.gasUsed.toString(),
-                effectiveGasPrice: swapReceipt.effectiveGasPrice.toString(),
-                from: tokenInfo.tokenIn.symbol,
-                to: tokenInfo.tokenOut.symbol,
-                amount: ethers.utils.formatUnits(tokenInfo.tokenIn.amount, tokenInfo.tokenIn.decimals)
-              });
-            } catch (error) {
-              console.log(`Error in runOnce callback: ${error}`);
-              reject(error);
-            }
-          });
-        }
-      });
-      
-      console.log("runOnce result:", JSON.stringify(runOnceResult));
-      
-      if (!runOnceResult) {
-        throw new Error("RunOnce returned undefined result");
-      }
-      
-      if (runOnceResult.error) {
-        throw new Error(`RunOnce failed: ${runOnceResult.error}`);
-      }
-      
-      if (runOnceResult.result) {
-        return runOnceResult.result;
-      } else {
-        // If this node didn't execute the transaction (another node did)
-        return {
-          success: true,
-          message: "Transaction executed by another node",
-          transactionHash: runOnceResult.txHash || "Unknown"
-        };
-      }
-    } catch (error) {
-      console.log("Error with runOnce:", error);
-      
-      // If runOnce fails, fall back to direct execution
-      console.log("Falling back to direct transaction execution without runOnce");
-      
       // Get current gas price
       const gasPrice = await provider.getGasPrice();
       console.log(`Current gas price: ${ethers.utils.formatUnits(gasPrice, 'gwei')} Gwei`);
@@ -411,301 +255,212 @@ async function executeSwap(params) {
         nonce
       };
       
-      // For ERC20 tokens, we need to approve the router first
-      if (tokenInfo.tokenIn.address !== 'ETH') {
-        console.log(`Approving ${tokenInfo.tokenIn.symbol} for Uniswap router...`);
-        
-        // Estimate gas for approval
-        const approvalGasLimit = await tokenInfo.tokenIn.contract.estimateGas.approve(
-          UNISWAP_V3_ROUTER,
-          tokenInfo.tokenIn.amount
-        ).catch(error => {
-          console.log('Error estimating approval gas:', error);
-          return ethers.BigNumber.from('100000'); // Default gas limit for approval
-        });
-        
-        console.log(`Estimated approval gas limit: ${approvalGasLimit.toString()}`);
-        
-        // Create and sign approval transaction
-        const approvalTx = await createTransaction(
-          UNISWAP_V3_ROUTER,
-          wallet.address,
-          approvalGasLimit,
-          tokenInfo.tokenIn.amount,
-          gasData,
-          true,
-          tokenInfo.tokenIn.contract,
-          null,
-          null
-        );
-        
-        console.log('Signing approval transaction...');
-        const signedApprovalTx = await wallet.signTransaction(approvalTx);
-        
-        console.log('Sending approval transaction...');
-        const approvalTxResponse = await provider.sendTransaction(signedApprovalTx);
-        
-        console.log(`Approval transaction sent: ${approvalTxResponse.hash}`);
-        console.log('Waiting for approval confirmation...');
-        
-        const approvalReceipt = await approvalTxResponse.wait();
-        console.log(`Approval confirmed in block ${approvalReceipt.blockNumber}`);
-        
-        // Update nonce for the swap transaction
-        gasData.nonce = nonce + 1;
-      }
+      // Create the transaction
+      let tx;
+      let receipt;
       
-      // Estimate gas for swap
-      let swapGasLimit;
-      
+      // Check if we're swapping from ETH
       if (tokenInfo.tokenIn.address === 'ETH') {
-        // For ETH input, we need to use a different method to estimate gas
-        const routerAbi = [
-          'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)'
-        ];
+        console.log('Swapping from ETH to token');
         
-        const routerContract = new ethers.Contract(UNISWAP_V3_ROUTER, routerAbi, provider);
-        
-        const deadline = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
-        
-        const exactInputSingleParams = {
+        // Create the exact input single parameters
+        const swapParams = {
           tokenIn: params.wethAddress,
           tokenOut: tokenInfo.tokenOut.address,
           fee: bestFee,
-          recipient: params.recipient || wallet.address,
-          deadline: deadline,
+          recipient: params.recipient,
           amountIn: tokenInfo.tokenIn.amount,
           amountOutMinimum: amountOutMin,
           sqrtPriceLimitX96: 0
         };
         
-        try {
-          swapGasLimit = await routerContract.estimateGas.exactInputSingle(
-            exactInputSingleParams,
-            { value: tokenInfo.tokenIn.amount, from: wallet.address }
-          );
-        } catch (error) {
-          console.log('Error estimating swap gas:', error);
-          swapGasLimit = ethers.BigNumber.from('500000'); // Default gas limit for swap
-        }
+        // Create the transaction
+        const routerContract = new ethers.Contract(
+          UNISWAP_V3_ROUTER,
+          [
+            'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
+            'function unwrapWETH9(uint256 amountMinimum, address recipient) external payable'
+          ],
+          wallet
+        );
+        
+        // Estimate gas limit
+        const gasLimit = await routerContract.estimateGas.exactInputSingle(
+          swapParams,
+          { value: tokenInfo.tokenIn.amount }
+        );
+        console.log(`Estimated gas limit: ${gasLimit.toString()}`);
+        
+        // Send the transaction
+        tx = await routerContract.exactInputSingle(
+          swapParams,
+          {
+            value: tokenInfo.tokenIn.amount,
+            gasPrice: gasData.gasPrice,
+            gasLimit: gasLimit.mul(120).div(100), // Add 20% buffer
+            nonce: gasData.nonce
+          }
+        );
       } else {
-        // For ERC20 input, we can estimate gas normally
-        const routerAbi = [
-          'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external returns (uint256 amountOut)'
-        ];
+        console.log('Swapping from token to token');
         
-        const routerContract = new ethers.Contract(UNISWAP_V3_ROUTER, routerAbi, provider);
+        // Get token contract
+        const tokenContract = new ethers.Contract(
+          tokenInfo.tokenIn.address,
+          [
+            'function approve(address spender, uint256 amount) external returns (bool)',
+            'function allowance(address owner, address spender) external view returns (uint256)'
+          ],
+          wallet
+        );
         
-        const deadline = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
+        // Check allowance
+        const allowance = await tokenContract.allowance(wallet.address, UNISWAP_V3_ROUTER);
+        console.log(`Current allowance: ${allowance.toString()}`);
         
-        const exactInputSingleParams = {
+        // Approve if needed
+        if (allowance.lt(tokenInfo.tokenIn.amount)) {
+          console.log('Approving token spend...');
+          
+          // Estimate gas for approval
+          const approvalGasLimit = await tokenContract.estimateGas.approve(
+            UNISWAP_V3_ROUTER,
+            ethers.constants.MaxUint256
+          );
+          
+          // Send approval transaction
+          const approvalTx = await tokenContract.approve(
+            UNISWAP_V3_ROUTER,
+            ethers.constants.MaxUint256,
+            {
+              gasPrice: gasData.gasPrice,
+              gasLimit: approvalGasLimit.mul(120).div(100), // Add 20% buffer
+              nonce: gasData.nonce
+            }
+          );
+          
+          console.log(`Approval transaction sent: ${approvalTx.hash}`);
+          
+          // Wait for approval to be mined
+          const approvalReceipt = await approvalTx.wait();
+          console.log(`Approval confirmed in block ${approvalReceipt.blockNumber}`);
+          
+          // Increment nonce for the swap transaction
+          gasData.nonce++;
+        }
+        
+        // Create the exact input single parameters
+        const swapParams = {
           tokenIn: tokenInfo.tokenIn.address,
           tokenOut: tokenInfo.tokenOut.address,
           fee: bestFee,
-          recipient: params.recipient || wallet.address,
-          deadline: deadline,
+          recipient: params.recipient,
           amountIn: tokenInfo.tokenIn.amount,
           amountOutMinimum: amountOutMin,
           sqrtPriceLimitX96: 0
         };
         
-        try {
-          swapGasLimit = await routerContract.estimateGas.exactInputSingle(
-            exactInputSingleParams,
-            { from: wallet.address }
-          );
-        } catch (error) {
-          console.log('Error estimating swap gas:', error);
-          swapGasLimit = ethers.BigNumber.from('500000'); // Default gas limit for swap
-        }
+        // Create the router contract
+        const routerContract = new ethers.Contract(
+          UNISWAP_V3_ROUTER,
+          [
+            'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)'
+          ],
+          wallet
+        );
+        
+        // Estimate gas limit
+        const gasLimit = await routerContract.estimateGas.exactInputSingle(swapParams);
+        console.log(`Estimated gas limit: ${gasLimit.toString()}`);
+        
+        // Send the transaction
+        tx = await routerContract.exactInputSingle(
+          swapParams,
+          {
+            gasPrice: gasData.gasPrice,
+            gasLimit: gasLimit.mul(120).div(100), // Add 20% buffer
+            nonce: gasData.nonce
+          }
+        );
       }
       
-      console.log(`Estimated swap gas limit: ${swapGasLimit.toString()}`);
+      console.log(`Swap transaction sent: ${tx.hash}`);
       
-      // Add a buffer to the gas limit
-      const gasLimitBuffer = 1.2; // 20% buffer
-      const updatedGasLimit = ethers.BigNumber.from(Math.floor(swapGasLimit.toNumber() * gasLimitBuffer));
+      // Wait for transaction to be mined
+      receipt = await tx.wait();
+      console.log(`Swap confirmed in block ${receipt.blockNumber}`);
       
-      // Update gas data with the new gas limit
-      const updatedGasData = {
-        ...gasData,
-        gasLimit: updatedGasLimit
-      };
-      
-      // Create and sign the swap transaction
-      const swapTx = await createTransaction(
-        UNISWAP_V3_ROUTER,
-        wallet.address,
-        updatedGasLimit,
-        tokenInfo.tokenIn.amount,
-        updatedGasData,
-        false,
-        tokenInfo.tokenIn.contract,
-        tokenInfo.tokenOut.address,
-        params.recipient || wallet.address,
-        { fee: bestFee, amountOutMin, wethAddress: params.wethAddress }
-      );
-      
-      console.log('Signing swap transaction...');
-      const signedSwapTx = await wallet.signTransaction(swapTx);
-      
-      console.log('Sending swap transaction...');
-      const swapTxResponse = await provider.sendTransaction(signedSwapTx);
-      
-      console.log(`Swap transaction sent: ${swapTxResponse.hash}`);
-      console.log('Waiting for swap confirmation...');
-      
-      const swapReceipt = await swapTxResponse.wait();
-      
-      if (swapReceipt.status === 0) {
-        throw new Error(`Transaction failed: ${swapTxResponse.hash}`);
-      }
-      
-      console.log(`Swap confirmed in block ${swapReceipt.blockNumber}`);
-      
-      // Return the transaction details
+      // Return the result
       return {
         success: true,
-        transactionHash: swapTxResponse.hash,
-        blockNumber: swapReceipt.blockNumber,
-        gasUsed: swapReceipt.gasUsed.toString(),
-        effectiveGasPrice: swapReceipt.effectiveGasPrice.toString(),
-        from: tokenInfo.tokenIn.symbol,
-        to: tokenInfo.tokenOut.symbol,
-        amount: ethers.utils.formatUnits(tokenInfo.tokenIn.amount, tokenInfo.tokenIn.decimals)
+        transactionHash: tx.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString(),
+        status: receipt.status === 1 ? 'success' : 'failed'
       };
+    } catch (error) {
+      console.error('Error executing transaction:', error);
+      throw error;
     }
-    
   } catch (error) {
-    console.log(`Error executing swap: ${error}`);
-    
-    // Extract transaction details if available
-    const txDetails = {};
-    
-    if (error.transaction) {
-      txDetails.transaction = {
-        hash: error.transaction.hash,
-        from: error.transaction.from,
-        to: error.transaction.to,
-        value: error.transaction.value ? ethers.utils.formatEther(error.transaction.value) : '0',
-        data: error.transaction.data
-      };
-    }
-    
-    if (error.receipt) {
-      txDetails.receipt = {
-        status: error.receipt.status,
-        blockNumber: error.receipt.blockNumber,
-        gasUsed: error.receipt.gasUsed ? error.receipt.gasUsed.toString() : '0'
-      };
-    }
-    
-    return {
-      success: false,
-      error: error.message || String(error),
-      ...txDetails
-    };
+    console.error('Error executing swap:', error);
+    throw error;
   }
 }
 
-// Format and validate private key
-function formatPrivateKey(key) {
-  if (!key) return null;
-  
-  // Remove any whitespace
-  let formattedKey = key.trim();
-  
-  // Handle case where key might have duplicate 0x prefix
-  if (formattedKey.startsWith('0x0x')) {
-    formattedKey = '0x' + formattedKey.substring(4);
-  }
-  
-  // Add 0x prefix if missing
-  if (!formattedKey.startsWith('0x')) {
-    formattedKey = '0x' + formattedKey;
-  }
-  
-  // If key is too long (more than 66 chars for a standard Ethereum private key)
-  // try to extract the correct portion
-  if (formattedKey.length > 66) {
-    // Try to extract a valid 64-character hex string after the 0x prefix
-    const hexPart = formattedKey.substring(2);
-    if (hexPart.length >= 64) {
-      formattedKey = '0x' + hexPart.substring(0, 64);
-    }
-  }
-  
-  // Validate that it's a proper private key format
-  try {
-    // This will throw if the key is invalid
-    const wallet = new ethers.Wallet(formattedKey);
-    console.log(`Successfully validated private key. Wallet address: ${wallet.address}`);
-    return formattedKey;
-  } catch (error) {
-    console.error('Invalid private key format:', error.message);
-    return null;
-  }
-}
-
-// Get token info (symbol, decimals, etc.)
+// Get token information (symbol, decimals, etc.)
 async function getTokenInfo(provider, tokenIn, tokenOut, amountIn, walletAddress, wethAddress) {
-  const result = {
-    tokenIn: {},
-    tokenOut: {}
-  };
-  
-  // Handle ETH as a special case for tokenIn
-  if (tokenIn.toLowerCase() === 'eth') {
-    result.tokenIn = {
-      address: 'ETH',
-      symbol: 'ETH',
-      decimals: 18,
-      amount: ethers.utils.parseEther(amountIn),
-      contract: 'ETH'
+  try {
+    const result = {
+      tokenIn: {},
+      tokenOut: {}
     };
-  } else {
-    // For ERC20 tokens, query the contract
-    const tokenInContract = new ethers.Contract(
-      tokenIn,
+    
+    // Handle token in
+    if (tokenIn.toLowerCase() === 'eth') {
+      result.tokenIn = {
+        address: 'ETH',
+        symbol: 'ETH',
+        decimals: 18,
+        amount: ethers.utils.parseEther(amountIn.toString())
+      };
+    } else {
+      const tokenInContract = new ethers.Contract(
+        tokenIn,
+        [
+          'function symbol() view returns (string)',
+          'function decimals() view returns (uint8)',
+          'function balanceOf(address owner) view returns (uint256)'
+        ],
+        provider
+      );
+      
+      const [symbol, decimals, balance] = await Promise.all([
+        tokenInContract.symbol(),
+        tokenInContract.decimals(),
+        tokenInContract.balanceOf(walletAddress)
+      ]);
+      
+      result.tokenIn = {
+        address: tokenIn,
+        symbol,
+        decimals,
+        balance: balance.toString(),
+        amount: ethers.utils.parseUnits(amountIn.toString(), decimals)
+      };
+    }
+    
+    // Handle token out
+    const tokenOutContract = new ethers.Contract(
+      tokenOut,
       [
         'function symbol() view returns (string)',
         'function decimals() view returns (uint8)',
-        'function balanceOf(address) view returns (uint256)',
-        'function approve(address spender, uint256 amount) returns (bool)'
+        'function balanceOf(address owner) view returns (uint256)'
       ],
       provider
     );
     
-    const [symbol, decimals, balance] = await Promise.all([
-      tokenInContract.symbol(),
-      tokenInContract.decimals(),
-      tokenInContract.balanceOf(walletAddress)
-    ]);
-    
-    const amount = ethers.utils.parseUnits(amountIn, decimals);
-    
-    result.tokenIn = {
-      address: tokenIn,
-      symbol,
-      decimals,
-      balance,
-      amount,
-      contract: tokenInContract
-    };
-  }
-  
-  // Get token out info
-  const tokenOutContract = new ethers.Contract(
-    tokenOut,
-    [
-      'function symbol() view returns (string)',
-      'function decimals() view returns (uint8)',
-      'function balanceOf(address) view returns (uint256)'
-    ],
-    provider
-  );
-  
-  try {
     const [symbol, decimals, balance] = await Promise.all([
       tokenOutContract.symbol(),
       tokenOutContract.decimals(),
@@ -716,236 +471,98 @@ async function getTokenInfo(provider, tokenIn, tokenOut, amountIn, walletAddress
       address: tokenOut,
       symbol,
       decimals,
-      balance
+      balance: balance.toString()
     };
     
-    console.log(`Swapping ${ethers.utils.formatUnits(result.tokenIn.amount, result.tokenIn.decimals)} ${result.tokenIn.symbol} to ${result.tokenOut.symbol}`);
+    return result;
   } catch (error) {
-    console.error(`Error getting token out info: ${error.message}`);
-    
-    // Fallback to basic info
-    result.tokenOut = {
-      address: tokenOut,
-      decimals: 18 // Assume 18 decimals as fallback
-    };
+    console.error('Error getting token info:', error);
+    throw error;
   }
-  
-  return result;
-}
-
-// Get Uniswap router and quoter addresses for the given chain
-function getUniswapQuoterRouter(chainId, params) {
-  // Use provided addresses if available
-  if (params.uniswapQuoterAddress && params.uniswapRouterAddress) {
-    return {
-      UNISWAP_V3_QUOTER: params.uniswapQuoterAddress,
-      UNISWAP_V3_ROUTER: params.uniswapRouterAddress
-    };
-  }
-  
-  // Default to Base Mainnet addresses
-  let UNISWAP_V3_QUOTER = '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a';
-  let UNISWAP_V3_ROUTER = '0x2626664c2603336e57b271c5c0b26f421741e481';
-  
-  // Chain-specific addresses
-  if (chainId === '84532') { // Base Sepolia
-    UNISWAP_V3_QUOTER = '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a';
-    UNISWAP_V3_ROUTER = '0x4752ba5DBc23F44D41AAe9AE3EE0Bf8A5791F83c';
-  } else if (chainId === '8453') { // Base Mainnet
-    UNISWAP_V3_QUOTER = '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a';
-    UNISWAP_V3_ROUTER = '0x2626664c2603336e57b271c5c0b26f421741e481';
-  }
-  
-  return { UNISWAP_V3_QUOTER, UNISWAP_V3_ROUTER };
 }
 
 // Get the best quote for a swap
 async function getBestQuote(provider, quoterAddress, amountIn, decimalsOut, tokenIn, tokenOut, slippageBps) {
-  console.log(`Getting best quote for ${amountIn} of ${tokenIn} to ${tokenOut} with ${slippageBps} bps slippage`);
-  
-  // Define fee tiers to check
-  const feeTiers = [500, 3000, 10000]; // 0.05%, 0.3%, 1%
-  
-  // Quoter contract interface
-  const quoterAbi = [
-    'function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)'
-  ];
-  
-  const quoterContract = new ethers.Contract(quoterAddress, quoterAbi, provider);
-  
-  let bestQuote = ethers.BigNumber.from(0);
-  let bestFee = 3000; // Default to 0.3% fee tier
-  let foundLiquidity = false;
-  
-  // Try each fee tier
-  for (const fee of feeTiers) {
-    try {
-      console.log(`Checking ${fee} fee tier...`);
-      const amountOut = await quoterContract.callStatic.quoteExactInputSingle(
-        tokenIn,
-        tokenOut,
-        fee,
-        amountIn,
-        0 // No price limit
-      );
-      
-      console.log(`Quote for ${fee} fee tier: ${amountOut.toString()}`);
-      
-      // If this is the best quote so far, update
-      if (amountOut.gt(bestQuote)) {
-        bestQuote = amountOut;
-        bestFee = fee;
-        foundLiquidity = true;
-      }
-    } catch (error) {
-      console.log(`No liquidity found for ${fee} fee tier: ${error}`);
-    }
-  }
-  
-  // If no liquidity found in any fee tier, use default values
-  if (!foundLiquidity) {
-    console.log('No liquidity found in any fee tier, using default fee tier (3000) and minimum amount out (1)');
-    return {
-      bestFee: 3000,
-      amountOutMin: 1
-    };
-  }
-  
-  // Calculate minimum amount out based on slippage
-  const slippageFactor = 10000 - parseInt(slippageBps);
-  const amountOutMin = bestQuote.mul(slippageFactor).div(10000);
-  
-  console.log(`Best fee tier: ${bestFee}, Best quote: ${bestQuote.toString()}, Minimum out: ${amountOutMin.toString()}`);
-  
-  return {
-    bestFee,
-    amountOutMin
-  };
-}
-
-// Get gas data for transactions
-async function getGasData(provider, address) {
-  const feeData = await provider.getFeeData();
-  const nonce = await provider.getTransactionCount(address);
-  
-  console.log(`Current gas price: ${ethers.utils.formatUnits(feeData.gasPrice, 'gwei')} Gwei`);
-  console.log(`Current nonce: ${nonce}`);
-  
-  return {
-    gasPrice: feeData.gasPrice,
-    maxFeePerGas: feeData.maxFeePerGas,
-    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-    nonce
-  };
-}
-
-// Estimate gas limit for a transaction
-async function estimateGasLimit(provider, from, to, tokenContract, amount, isApproval, swapParams = {}) {
   try {
-    if (isApproval) {
-      // For approval transactions
-      const approvalData = tokenContract.interface.encodeFunctionData('approve', [to, amount]);
-      
-      const gasEstimate = await provider.estimateGas({
-        from,
-        to: tokenContract.address,
-        data: approvalData
-      });
-      
-      // Add 20% buffer for safety
-      return gasEstimate.mul(12).div(10);
-    } else {
-      // For swap transactions, use a conservative estimate
-      return ethers.BigNumber.from(500000);
+    // Create quoter contract
+    const quoterContract = new ethers.Contract(
+      quoterAddress,
+      [
+        'function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)'
+      ],
+      provider
+    );
+    
+    // Fee tiers to check
+    const feeTiers = [100, 500, 3000, 10000]; // 0.01%, 0.05%, 0.3%, 1%
+    
+    // Get quotes for each fee tier
+    const quotes = await Promise.all(
+      feeTiers.map(async (fee) => {
+        try {
+          const amountOut = await quoterContract.callStatic.quoteExactInputSingle(
+            tokenIn,
+            tokenOut,
+            fee,
+            amountIn,
+            0 // No price limit
+          );
+          
+          return {
+            fee,
+            amountOut
+          };
+        } catch (error) {
+          console.log(`Quote failed for fee tier ${fee/10000}%:`, error.message);
+          return {
+            fee,
+            amountOut: ethers.BigNumber.from(0)
+          };
+        }
+      })
+    );
+    
+    // Find the best quote
+    const bestQuote = quotes.reduce((best, current) => {
+      return current.amountOut.gt(best.amountOut) ? current : best;
+    }, { fee: 0, amountOut: ethers.BigNumber.from(0) });
+    
+    console.log('Quote results:');
+    quotes.forEach(quote => {
+      console.log(`- Fee tier ${quote.fee/10000}%: ${ethers.utils.formatUnits(quote.amountOut, decimalsOut)} tokens`);
+    });
+    
+    // If no valid quotes found, use default values instead of throwing an error
+    if (bestQuote.amountOut.isZero()) {
+      console.log('No valid quotes found for any fee tier, using default fee tier (0.3%) and minimum amount (1 wei)');
+      return {
+        bestFee: 3000, // Default to 0.3% fee tier
+        amountOut: ethers.BigNumber.from(1),
+        amountOutMin: ethers.BigNumber.from(1) // Minimum of 1 wei
+      };
     }
-  } catch (error) {
-    console.error('Error estimating gas limit:', error);
-    // Fallback to a conservative gas limit
-    return ethers.BigNumber.from(500000);
-  }
-}
-
-// Create a transaction
-async function createTransaction(to, from, gasLimit, amount, gasData, isApproval, tokenContract, tokenOut, recipient, swapParams = {}) {
-  if (isApproval) {
-    // Create approval transaction
-    const approvalData = tokenContract.interface.encodeFunctionData('approve', [to, amount]);
+    
+    console.log(`Best quote: ${ethers.utils.formatUnits(bestQuote.amountOut, decimalsOut)} tokens at fee tier ${bestQuote.fee/10000}%`);
+    
+    // Calculate minimum amount out with slippage
+    const slippageMultiplier = ethers.BigNumber.from(10000).sub(ethers.BigNumber.from(slippageBps));
+    const amountOutMin = bestQuote.amountOut.mul(slippageMultiplier).div(10000);
+    
+    console.log(`Minimum amount out with ${slippageBps/100}% slippage: ${ethers.utils.formatUnits(amountOutMin, decimalsOut)} tokens`);
     
     return {
-      from,
-      to: tokenContract.address,
-      data: approvalData,
-      gasLimit,
-      gasPrice: gasData.gasPrice,
-      nonce: gasData.nonce
+      bestFee: bestQuote.fee,
+      amountOut: bestQuote.amountOut,
+      amountOutMin
     };
-  } else {
-    // Create swap transaction
-    const deadline = Math.floor(Date.now() / 1000) + 1800; // 30 minutes
-    
-    // For ETH input, we need to use the exactInputSingleETH function
-    if (tokenContract === 'ETH') {
-      // Create router contract with SwapRouter02 interface for ETH input
-      const routerAbi = [
-        'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
-        'function unwrapWETH9(uint256 amountMinimum, address recipient) external payable'
-      ];
-      
-      const routerContract = new ethers.Contract(to, routerAbi, ethers.provider);
-      
-      // For ETH input, we use the WETH address as tokenIn
-      const exactInputSingleParams = {
-        tokenIn: swapParams.wethAddress,
-        tokenOut: tokenOut,
-        fee: swapParams.fee || 3000,
-        recipient: recipient,
-        deadline: deadline,
-        amountIn: amount,
-        amountOutMinimum: swapParams.amountOutMin || 1,
-        sqrtPriceLimitX96: 0 // No price limit
-      };
-      
-      const swapData = routerContract.interface.encodeFunctionData('exactInputSingle', [exactInputSingleParams]);
-      
-      return {
-        from,
-        to,
-        data: swapData,
-        value: amount,
-        gasLimit,
-        gasPrice: gasData.gasPrice,
-        nonce: gasData.nonce
-      };
-    } else {
-      // Create router contract with SwapRouter02 interface for ERC20 input
-      const routerAbi = [
-        'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external returns (uint256 amountOut)'
-      ];
-      
-      const routerContract = new ethers.Contract(to, routerAbi, ethers.provider);
-      
-      // Prepare swap parameters for ERC20 input
-      const exactInputSingleParams = {
-        tokenIn: tokenContract.address,
-        tokenOut: tokenOut,
-        fee: swapParams.fee || 3000,
-        recipient: recipient,
-        deadline: deadline,
-        amountIn: amount,
-        amountOutMinimum: swapParams.amountOutMin || 1,
-        sqrtPriceLimitX96: 0 // No price limit
-      };
-      
-      const swapData = routerContract.interface.encodeFunctionData('exactInputSingle', [exactInputSingleParams]);
-      
-      return {
-        from,
-        to,
-        data: swapData,
-        gasLimit,
-        gasPrice: gasData.gasPrice,
-        nonce: gasData.nonce
-      };
-    }
+  } catch (error) {
+    console.error('Error getting quote:', error);
+    // Return default values instead of throwing an error
+    console.log('Error in quote process, using default fee tier (0.3%) and minimum amount (1 wei)');
+    return {
+      bestFee: 3000, // Default to 0.3% fee tier
+      amountOut: ethers.BigNumber.from(1),
+      amountOutMin: ethers.BigNumber.from(1) // Minimum of 1 wei
+    };
   }
 }

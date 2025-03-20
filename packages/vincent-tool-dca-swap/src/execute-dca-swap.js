@@ -6,6 +6,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import * as LitConstants from '@lit-protocol/constants';
+import { 
+  formatPrivateKey, 
+  validatePrivateKey, 
+  loadIpfsIds, 
+  loadPrivateKey, 
+  CHAIN_CONSTANTS 
+} from './lib/utils.js';
 
 // Get the directory of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -20,66 +27,9 @@ const litNodeClient = new LitNodeClient({
 // Export the litNodeClient for use in other modules
 export { litNodeClient };
 
-// Load IPFS IDs from the file
-function loadIpfsIds() {
-  try {
-    const ipfsIdsPath = path.join(__dirname, '..', 'ipfs-ids.json');
-    const ipfsIdsData = fs.readFileSync(ipfsIdsPath, 'utf8');
-    return JSON.parse(ipfsIdsData);
-  } catch (error) {
-    console.error('Error loading IPFS IDs:', error);
-    return null;
-  }
-}
-
 // Load private key from .env file
-function loadPrivateKey() {
-  try {
-    const envPath = path.join(__dirname, '.env');
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    const privateKeyMatch = envContent.match(/PRIVATE_KEY=(.+)/);
-    
-    if (privateKeyMatch && privateKeyMatch[1]) {
-      let privateKey = privateKeyMatch[1].trim();
-      
-      // Handle case where key might have duplicate 0x prefix
-      if (privateKey.startsWith('0x0x')) {
-        privateKey = '0x' + privateKey.substring(4);
-      }
-      
-      // Add 0x prefix if missing
-      if (!privateKey.startsWith('0x')) {
-        privateKey = '0x' + privateKey;
-      }
-      
-      // If key is too long (more than 66 chars for a standard Ethereum private key)
-      // try to extract the correct portion
-      if (privateKey.length > 66) {
-        // Try to extract a valid 64-character hex string after the 0x prefix
-        const hexPart = privateKey.substring(2);
-        if (hexPart.length >= 64) {
-          privateKey = '0x' + hexPart.substring(0, 64);
-        }
-      }
-      
-      // Validate that it's a proper private key format
-      try {
-        // This will throw if the key is invalid
-        const wallet = new ethers.Wallet(privateKey);
-        console.log(`Successfully validated private key. Wallet address: ${wallet.address}`);
-        return privateKey;
-      } catch (error) {
-        console.error('Invalid private key format:', error.message);
-        return null;
-      }
-    } else {
-      console.error('Private key not found in .env file');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error loading private key:', error);
-    return null;
-  }
+function loadPrivateKeyFromEnv() {
+  return loadPrivateKey();
 }
 
 // Function to get session signatures
@@ -200,7 +150,7 @@ async function executeIPFSWithDirectParams(ipfsCid, params = {}, privateKey) {
     
     return response;
   } catch (error) {
-    console.error('Error executing Lit Action:', error);
+    console.error('Error executing IPFS Lit Action:', error);
     throw error;
   }
 }
@@ -208,141 +158,102 @@ async function executeIPFSWithDirectParams(ipfsCid, params = {}, privateKey) {
 // Main function to execute a DCA swap
 async function executeDcaSwap(options) {
   try {
-    // Load IPFS IDs if not provided in options
-    const ipfsIds = options.toolIpfsId && options.policyIpfsId && options.policySchemaIpfsId
-      ? {
-          toolIpfsId: options.toolIpfsId,
-          policyIpfsId: options.policyIpfsId,
-          policySchemaIpfsId: options.policySchemaIpfsId
-        }
-      : loadIpfsIds();
+    console.log('Executing DCA swap with options:', JSON.stringify({
+      ...options,
+      privateKey: options.privateKey ? '***redacted***' : undefined
+    }, null, 2));
+    
+    // Load IPFS IDs if not provided
+    let ipfsIds;
+    if (options.toolIpfsId) {
+      ipfsIds = options;
+    } else {
+      const ipfsIdsPath = path.join(__dirname, '..', 'ipfs-ids.json');
+      console.log(`Loading IPFS IDs from: ${ipfsIdsPath}`);
+      ipfsIds = loadIpfsIds(ipfsIdsPath);
+    }
     
     if (!ipfsIds) {
       throw new Error('Failed to load IPFS IDs');
     }
     
-    const { toolIpfsId, policyIpfsId, policySchemaIpfsId } = ipfsIds;
-    
-    console.log('Using IPFS IDs:');
-    console.log(`- Tool: ${toolIpfsId}`);
-    console.log(`- Policy: ${policyIpfsId}`);
-    console.log(`- Policy Schema: ${policySchemaIpfsId}`);
-    
-    // Load private key if not provided in options
-    const privateKey = options.privateKey || loadPrivateKey();
-    
-    if (!privateKey) {
-      throw new Error('Private key is required to execute the DCA swap');
+    // Validate required parameters
+    if (!options.privateKey) {
+      throw new Error('Private key is required');
     }
     
-    // Initialize wallet
-    const wallet = new ethers.Wallet(privateKey);
-    console.log('Wallet address:', wallet.address);
+    if (!options.tokenIn || !options.tokenOut) {
+      throw new Error('tokenIn and tokenOut are required');
+    }
     
-    // Default options
-    const defaultOptions = {
-      fromToken: '0x4200000000000000000000000000000000000006', // WETH on Base
-      toToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',  // USDC on Base
-      amount: ethers.utils.parseEther('0.01').toString(),      // 0.01 ETH
-      slippage: '50',                                          // 0.5%
-      recipient: wallet.address,
-      uniswapQuoterAddress: '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a',  // QuoterV2 on Base
-      uniswapRouterAddress: '0x2626664c2603336e57b271c5c0b26f421741e481',  // SwapRouter02 on Base
-      wethAddress: '0x4200000000000000000000000000000000000006',  // WETH on Base
+    if (!options.amountIn && !options.amount) {
+      throw new Error('amountIn or amount is required');
+    }
+    
+    // Format private key
+    const privateKey = formatPrivateKey(options.privateKey);
+    
+    // Validate the private key
+    const validation = validatePrivateKey(privateKey);
+    if (!validation.valid) {
+      throw new Error(`Invalid private key: ${validation.error}`);
+    }
+    
+    // Use the wallet address as recipient if not specified
+    const recipient = options.recipient || validation.wallet.address;
+    
+    // Use Base Mainnet defaults if not specified
+    const chainId = options.chainId || CHAIN_CONSTANTS.BASE_MAINNET.CHAIN_ID;
+    const rpcUrl = options.rpcUrl || CHAIN_CONSTANTS.BASE_MAINNET.RPC_URL;
+    const wethAddress = options.wethAddress || CHAIN_CONSTANTS.BASE_MAINNET.WETH_ADDRESS;
+    const uniswapQuoterAddress = options.uniswapQuoterAddress || CHAIN_CONSTANTS.BASE_MAINNET.UNISWAP_QUOTER_ADDRESS;
+    const uniswapRouterAddress = options.uniswapRouterAddress || CHAIN_CONSTANTS.BASE_MAINNET.UNISWAP_ROUTER_ADDRESS;
+    
+    // Use amountIn or amount (for backward compatibility)
+    const amountIn = options.amountIn || options.amount;
+    
+    // Default slippage to 100 basis points (1%) if not specified
+    const slippage = options.slippage || '100';
+    
+    // Prepare parameters for the Lit Action
+    const params = {
+      privateKey,
+      rpcUrl,
+      chainId,
+      tokenIn: options.tokenIn,
+      tokenOut: options.tokenOut,
+      amountIn,
+      recipient,
+      slippage,
+      wethAddress,
+      uniswapQuoterAddress,
+      uniswapRouterAddress,
+      policyIpfsId: ipfsIds.policyIpfsId,
+      policySchemaIpfsId: ipfsIds.policySchemaIpfsId
     };
     
-    // Merge options
-    const swapOptions = {
-      ...defaultOptions,
-      ...options,
-      recipient: options?.recipient || wallet.address,
-    };
+    // Execute the Lit Action
+    console.log(`Executing Lit Action with IPFS ID: ${ipfsIds.toolIpfsId}`);
+    const result = await executeIPFSWithDirectParams(ipfsIds.toolIpfsId, params, privateKey);
     
-    console.log('\n--- Executing DCA Swap ---');
-    
-    // Format the amount properly
-    let formattedAmount = '0.01'; // Default amount
-    if (swapOptions.amount) {
-      if (typeof swapOptions.amount === 'string') {
-        // If it's already a string, use it directly
-        formattedAmount = swapOptions.amount;
-        // If it's a string representing a BigNumber (has only digits), convert it to ETH
-        if (/^\d+$/.test(swapOptions.amount)) {
-          formattedAmount = ethers.utils.formatEther(swapOptions.amount);
-        }
-      } else {
-        // If it's a BigNumber or other object, format it
-        formattedAmount = ethers.utils.formatEther(swapOptions.amount);
+    // Extract and return the parsed response
+    if (result && result.parsedResponse) {
+      return result.parsedResponse;
+    } else if (result && result.response) {
+      try {
+        return JSON.parse(result.response);
+      } catch (e) {
+        return { success: false, error: 'Failed to parse response' };
       }
+    } else {
+      return { success: false, error: 'Empty response from Lit Action' };
     }
-    
-    // Convert WETH address to 'eth' for the Lit Action
-    const tokenIn = swapOptions.fromToken === '0x4200000000000000000000000000000000000006' ? 'eth' : swapOptions.fromToken;
-    
-    console.log(`Executing swap for ${formattedAmount} ${tokenIn} to ${swapOptions.toToken}`);
-    
-    // Execute DCA swap
-    const swapParams = {
-      privateKey: privateKey,
-      rpcUrl: 'https://mainnet.base.org',
-      chainId: '8453',
-      tokenIn: tokenIn,
-      tokenOut: swapOptions.toToken,
-      amountIn: swapOptions.amountIn || formattedAmount, // Prioritize amountIn if provided
-      slippage: swapOptions.slippage || '50',
-      recipient: swapOptions.recipient,
-      uniswapQuoterAddress: swapOptions.uniswapQuoterAddress,
-      uniswapRouterAddress: swapOptions.uniswapRouterAddress,
-      wethAddress: swapOptions.wethAddress,
-      policyIpfsId: policyIpfsId, // Add the policy IPFS ID for the child Lit Action call
-      policySchemaIpfsId: policySchemaIpfsId, // Also pass the schema ID in case it's needed
-    };
-    
-    const swapResponse = await executeIPFSWithDirectParams(
-      toolIpfsId,
-      swapParams,
-      privateKey
-    );
-    
-    console.log('Swap Response:', swapResponse);
-    
-    // Check if the swap was successful
-    if (swapResponse.parsedResponse && !swapResponse.parsedResponse.success) {
-      throw new Error(`Swap failed: ${swapResponse.parsedResponse.error || 'Unknown error'}`);
-    }
-    
-    console.log('\n--- DCA Swap Completed Successfully ---');
-    
-    // Extract transaction hash from the parsed response
-    const txHash = swapResponse.parsedResponse?.transactionHash;
-    const isMock = swapResponse.parsedResponse?.mock === true;
-    
-    if (txHash) {
-      console.log('Transaction Hash:', txHash);
-      if (isMock) {
-        console.log('NOTE: This is a mock transaction (not actually executed on-chain)');
-      } else {
-        console.log('Transaction executed on Base Mainnet');
-      }
-    }
-    
-    // Disconnect from Lit network
-    await litNodeClient.disconnect();
-    console.log('Disconnected from Lit network');
-    
-    return swapResponse.parsedResponse || swapResponse;
   } catch (error) {
-    console.error('Error executing DCA swap:', error);
-    
-    // Disconnect from Lit network
-    try {
-      await litNodeClient.disconnect();
-      console.log('Disconnected from Lit network');
-    } catch (disconnectError) {
-      console.error('Error disconnecting from Lit network:', disconnectError);
-    }
-    
-    throw error;
+    console.error('Error in executeDcaSwap:', error);
+    return {
+      success: false,
+      error: error.message || String(error)
+    };
   }
 }
 

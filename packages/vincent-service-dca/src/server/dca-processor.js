@@ -61,6 +61,14 @@ export async function processDCATransactions() {
   try {
     console.log('Processing DCA transactions...');
     
+    // Always fetch and log the current top memecoin, regardless of execution
+    try {
+      const topMemeToken = await getTokenInfo('');
+      console.log(`Current top memecoin: ${topMemeToken.symbol} (${topMemeToken.contractAddress}) on Base`);
+    } catch (tokenError) {
+      console.error('Error fetching top memecoin:', tokenError.message);
+    }
+    
     // Find all active schedules
     const activeSchedules = await Schedule.find({ active: true }).lean();
     
@@ -81,7 +89,12 @@ export async function processDCATransactions() {
         if (!lastExecuted || (now.getTime() - lastExecuted.getTime()) >= schedule.purchaseIntervalSeconds * 1000) {
           console.log(`Executing DCA transaction for schedule ${schedule._id} (wallet: ${schedule.walletAddress})`);
           
-          // Execute the transaction for this schedule
+          // Get the top memecoin info before executing the transaction
+          const topMemeToken = await getTokenInfo('');
+          console.log(`Current top memecoin: ${topMemeToken.symbol} (${topMemeToken.contractAddress})`);
+          console.log(`Preparing to buy ${topMemeToken.symbol} (${topMemeToken.contractAddress}) on Base...`);
+          
+          // Execute the transaction for this schedule with the top memecoin
           await executeDCATransaction(schedule);
         } else {
           const nextExecution = new Date(lastExecuted.getTime() + schedule.purchaseIntervalSeconds * 1000);
@@ -95,21 +108,6 @@ export async function processDCATransactions() {
   } catch (error) {
     console.error('Error processing DCA transactions:', error);
   }
-  try {
-    // Get token information from the Coinranking API
-    // In a real implementation, we would get the token symbol from the schedule
-    // For testing, we'll fetch the top memecoin from the API
-    const tokenInfo = await getTokenInfo('');  // Empty string will fetch top memecoin
-    
-    // Example of how to use this in a DCA transaction
-    console.log(`Preparing to buy ${tokenInfo.symbol} (${tokenInfo.contractAddress}) on Base...`);
-    
-    // In a real implementation, this would execute the DCA transaction
-    // using the tokenInfo.contractAddress for the token to purchase
-    // TODO: use /vincentAssemble/vincentDca/packages/vincent-tool-dca-swap app to run the DCA operations in Lit actions.
-  } catch (error) {
-    console.error('Error processing DCA transactions:', error);
-  }
 }
 
 // Function to execute a single DCA transaction
@@ -117,8 +115,9 @@ export async function executeDCATransaction(schedule) {
   try {
     console.log(`Executing DCA transaction for schedule: ${schedule._id}`);
     
-    // Get token info for the token to purchase
-    const tokenInfo = await getTokenInfo(schedule.tokenSymbol);
+    // Get the top memecoin info instead of using the stored token symbol
+    // Pass empty string to getTokenInfo to get the top memecoin
+    const tokenInfo = await getTokenInfo('');
     
     // Create a JWT for authentication
     const jwt = await createJWT(schedule.walletAddress);
@@ -129,8 +128,9 @@ export async function executeDCATransaction(schedule) {
     console.log(`- Policy IPFS ID: ${dcaPolicyIpfsId}`);
     console.log('Calling DCA swap endpoint...');
     console.log(`Wallet address: ${schedule.walletAddress}`);
-    console.log(`Token: ${schedule.tokenSymbol} (${tokenInfo.contractAddress})`);
+    console.log(`Token: ${tokenInfo.symbol} (${tokenInfo.contractAddress})`);
     console.log(`Amount: ${schedule.purchaseAmount} ETH`);
+    console.log(`Preparing to buy ${tokenInfo.symbol} with contract address ${tokenInfo.contractAddress} on Base...`);
     
     // Call the DCA swap endpoint
     let response;
@@ -180,12 +180,15 @@ export async function executeDCATransaction(schedule) {
       console.log(`DCA transaction successful for schedule ${schedule._id}`);
       console.log(`Transaction hash: ${response.data.swapHash}`);
       
-      // Update the schedule with the transaction details
+      // Update the schedule with the transaction details and the new token info
       await Schedule.findByIdAndUpdate(schedule._id, {
         $push: {
           transactions: {
             date: new Date(),
             amount: schedule.purchaseAmount,
+            tokenSymbol: tokenInfo.symbol,
+            tokenName: tokenInfo.name,
+            tokenAddress: tokenInfo.contractAddress,
             tokenAmount: response.data.outputAmount,
             txHash: response.data.swapHash,
             status: 'completed'
@@ -198,7 +201,8 @@ export async function executeDCATransaction(schedule) {
       await PurchasedCoin.create({
         scheduleId: schedule._id,
         walletAddress: schedule.walletAddress,
-        tokenSymbol: schedule.tokenSymbol,
+        tokenSymbol: tokenInfo.symbol,
+        tokenName: tokenInfo.name,
         tokenAddress: tokenInfo.contractAddress,
         purchaseAmount: schedule.purchaseAmount,
         tokenAmount: response.data.outputAmount,
@@ -209,7 +213,9 @@ export async function executeDCATransaction(schedule) {
       return {
         success: true,
         txHash: response.data.swapHash,
-        outputAmount: response.data.outputAmount
+        outputAmount: response.data.outputAmount,
+        tokenSymbol: tokenInfo.symbol,
+        tokenAddress: tokenInfo.contractAddress
       };
     } else {
       console.error(`DCA transaction failed for schedule ${schedule._id}:`, response.data);
@@ -220,6 +226,9 @@ export async function executeDCATransaction(schedule) {
           transactions: {
             date: new Date(),
             amount: schedule.purchaseAmount,
+            tokenSymbol: tokenInfo.symbol,
+            tokenName: tokenInfo.name,
+            tokenAddress: tokenInfo.contractAddress,
             status: 'failed',
             error: response.data.error?.message || 'Unknown error'
           }

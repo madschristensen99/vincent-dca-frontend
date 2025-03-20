@@ -6,6 +6,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import fs from 'fs';
+import { 
+  formatPrivateKey, 
+  validatePrivateKey, 
+  loadIpfsIds, 
+  loadEnvVariables,
+  CHAIN_CONSTANTS 
+} from './lib/utils.js';
 
 // Get the directory of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -27,46 +34,13 @@ if (process.env.PRIVATE_KEY) {
 }
 
 // Load IPFS IDs from the ipfs-ids.json file
-const ipfsIdsPath = path.join(__dirname, '../ipfs-ids.json');
-const ipfsIds = JSON.parse(fs.readFileSync(ipfsIdsPath, 'utf8'));
+const ipfsIdsPath = path.join(__dirname, '..', 'ipfs-ids.json');
+console.log(`Loading IPFS IDs from: ${ipfsIdsPath}`);
+const ipfsIds = loadIpfsIds(ipfsIdsPath);
 
-// Format and validate private key
-function formatPrivateKey(key) {
-  if (!key) return null;
-  
-  // Remove any whitespace
-  let formattedKey = key.trim();
-  
-  // Handle case where key might have duplicate 0x prefix
-  if (formattedKey.startsWith('0x0x')) {
-    formattedKey = '0x' + formattedKey.substring(4);
-  }
-  
-  // Add 0x prefix if missing
-  if (!formattedKey.startsWith('0x')) {
-    formattedKey = '0x' + formattedKey;
-  }
-  
-  // If key is too long (more than 66 chars for a standard Ethereum private key)
-  // try to extract the correct portion
-  if (formattedKey.length > 66) {
-    // Try to extract a valid 64-character hex string after the 0x prefix
-    const hexPart = formattedKey.substring(2);
-    if (hexPart.length >= 64) {
-      formattedKey = '0x' + hexPart.substring(0, 64);
-    }
-  }
-  
-  // Validate that it's a proper private key format
-  try {
-    // This will throw if the key is invalid
-    const wallet = new ethers.Wallet(formattedKey);
-    console.log(`Successfully validated private key. Wallet address: ${wallet.address}`);
-    return formattedKey;
-  } catch (error) {
-    console.error('Invalid private key format:', error.message);
-    return null;
-  }
+if (!ipfsIds) {
+  console.error('Failed to load IPFS IDs. Make sure the ipfs-ids.json file exists and is valid.');
+  process.exit(1);
 }
 
 async function testRealSwap() {
@@ -81,7 +55,7 @@ async function testRealSwap() {
     console.log(`- Deployed at: ${ipfsIds.deployedAt}`);
     
     // Get private key from environment variables
-    const rawPrivateKey = process.env.PRIVATE_KEY;
+    const rawPrivateKey = loadEnvVariables().PRIVATE_KEY;
     if (!rawPrivateKey) {
       throw new Error('PRIVATE_KEY environment variable is required');
     }
@@ -91,31 +65,34 @@ async function testRealSwap() {
       throw new Error('Invalid private key format. Please check your .env file.');
     }
     
+    // Validate the private key
+    const validation = validatePrivateKey(privateKey);
+    if (!validation.valid) {
+      throw new Error(`Invalid private key: ${validation.error}`);
+    }
+    
     // Initialize wallet
-    const wallet = new ethers.Wallet(privateKey);
+    const wallet = validation.wallet;
     console.log(`Using wallet address: ${wallet.address}`);
     
-    // Base Mainnet addresses
-    const UNISWAP_QUOTER_ADDRESS = '0x3d4e44eb1374240ce5f1b871ab261cd16335b76a';
-    const UNISWAP_ROUTER_ADDRESS = '0x2626664c2603336e57b271c5c0b26f421741e481';
-    const WETH_ADDRESS = '0x4200000000000000000000000000000000000006';
-    const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+    // Use constants from utils module
+    const BASE_MAINNET = CHAIN_CONSTANTS.BASE_MAINNET;
     
     // Set swap options
     const swapOptions = {
       privateKey: privateKey,
-      rpcUrl: 'https://mainnet.base.org',
-      chainId: '8453',
+      rpcUrl: BASE_MAINNET.RPC_URL,
+      chainId: BASE_MAINNET.CHAIN_ID,
       tokenIn: 'eth',
-      tokenOut: USDC_ADDRESS,
+      tokenOut: BASE_MAINNET.USDC_ADDRESS,
       amountIn: '0.00005', // Even smaller amount to ensure success
       amount: '0.00005', // Also set the amount property to ensure it's used correctly
       slippage: '100', // 1%
       recipient: wallet.address,
       // Uniswap addresses for Base Mainnet
-      uniswapQuoterAddress: UNISWAP_QUOTER_ADDRESS,
-      uniswapRouterAddress: UNISWAP_ROUTER_ADDRESS,
-      wethAddress: WETH_ADDRESS,
+      uniswapQuoterAddress: BASE_MAINNET.UNISWAP_QUOTER_ADDRESS,
+      uniswapRouterAddress: BASE_MAINNET.UNISWAP_ROUTER_ADDRESS,
+      wethAddress: BASE_MAINNET.WETH_ADDRESS,
       // IPFS IDs
       toolIpfsId: ipfsIds.toolIpfsId,
       policyIpfsId: ipfsIds.policyIpfsId,
