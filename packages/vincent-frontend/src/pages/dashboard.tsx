@@ -28,8 +28,25 @@ interface ServerStatus {
   timestamp: string;
 }
 
+interface DCATransaction {
+  _id: string;
+  scheduleId: string;
+  walletAddress: string;
+  symbol: string;
+  name: string;
+  coinAddress: string;
+  price: string;
+  purchaseAmount: string;
+  success: boolean;
+  txHash?: string;
+  error?: string;
+  purchasedAt: string;
+  status?: string;
+}
+
 export default function Dashboard() {
   const [logs, setLogs] = useState<Log[]>([]);
+  const [transactions, setTransactions] = useState<DCATransaction[]>([]);
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,86 +169,68 @@ export default function Dashboard() {
       }
       
       // Get the wallet address from the JWT
-      const pkpAddress = getPkpAddressFromJwt(jwtToken);
+      const userWalletAddress = walletAddress || getPkpAddressFromJwt(jwtToken);
       
-      // Fetch DCA data
+      if (!userWalletAddress) {
+        console.error('No wallet address available');
+        setError('No wallet address available. Please authenticate with a valid wallet.');
+        setLogs([]);
+        setTransactions([]);
+        return false;
+      }
+      
+      // Fetch DCA transactions for the specific wallet address
       try {
-        // First try to get all schedules (without wallet address filter)
-        const schedulesUrl = `${BACKEND_API_URL}/dca/schedules`;
-        console.log(`Fetching all schedules from: ${schedulesUrl}`);
+        const transactionsUrl = `${BACKEND_API_URL}/dca/transactions/${userWalletAddress}`;
+        console.log(`Fetching transactions for wallet ${userWalletAddress} from: ${transactionsUrl}`);
         
-        const schedulesResponse = await fetch(schedulesUrl, {
+        const transactionsResponse = await fetch(transactionsUrl, {
           headers: createAuthHeaders(jwtToken)
         });
         
-        if (schedulesResponse.ok) {
-          const schedulesData = await schedulesResponse.json();
-          console.log('All DCA schedules:', schedulesData);
+        if (transactionsResponse.ok) {
+          const transactionsData = await transactionsResponse.json();
+          console.log('DCA transactions for wallet:', transactionsData);
           
-          // Filter schedules for the current user if we have their address
-          let userSchedules = schedulesData;
-          if (pkpAddress) {
-            userSchedules = schedulesData.filter((schedule: any) => 
-              schedule.walletAddress && schedule.walletAddress.toLowerCase() === pkpAddress.toLowerCase()
-            );
-            console.log(`Filtered schedules for wallet ${pkpAddress}:`, userSchedules);
-          }
+          // Filter out invalid transactions (missing required fields)
+          const validTransactions = transactionsData.filter((tx: DCATransaction) => {
+            return tx.walletAddress && 
+                   tx.symbol && 
+                   tx.name && 
+                   tx.purchaseAmount && 
+                   tx.purchasedAt;
+          });
           
-          // Convert schedules to log format
-          const formattedLogs = userSchedules.map((schedule: any) => ({
-            timestamp: schedule.createdAt || new Date().toISOString(),
-            type: schedule.active ? 'active_schedule' : 'inactive_schedule',
-            message: `DCA Schedule: Purchase of ${schedule.purchaseAmount || 'unknown'} USD every ${Math.floor((schedule.purchaseIntervalSeconds || 86400) / 86400)} day(s)`,
-            data: schedule
+          // Sort transactions by purchasedAt date (newest first)
+          const sortedTransactions = validTransactions.sort((a: DCATransaction, b: DCATransaction) => {
+            return new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime();
+          });
+          
+          setTransactions(sortedTransactions);
+          
+          // Convert transactions to log format for the logs section
+          const formattedLogs = sortedTransactions.map((tx: DCATransaction) => ({
+            timestamp: tx.purchasedAt || new Date().toISOString(),
+            type: tx.success ? 'success' : 'error',
+            message: `${tx.success ? 'Successful' : 'Failed'} purchase of ${formatEthAmount(tx.purchaseAmount)} ${tx.name} (${tx.symbol}) at ${formatUsdAmount(tx.price)}`,
+            data: tx
           }));
           
           setLogs(formattedLogs);
           return true;
         } else {
-          console.log(`Failed to fetch schedules: ${schedulesResponse.statusText}`);
-          
-          // Try to get all transactions as a fallback
-          const transactionsUrl = `${BACKEND_API_URL}/dca/transactions`;
-          console.log(`Fetching all transactions from: ${transactionsUrl}`);
-          
-          const transactionsResponse = await fetch(transactionsUrl, {
-            headers: createAuthHeaders(jwtToken)
-          });
-          
-          if (transactionsResponse.ok) {
-            const transactionsData = await transactionsResponse.json();
-            console.log('All DCA transactions:', transactionsData);
-            
-            // Filter transactions for the current user if we have their address
-            let userTransactions = transactionsData;
-            if (pkpAddress) {
-              userTransactions = transactionsData.filter((tx: any) => 
-                tx.walletAddress && tx.walletAddress.toLowerCase() === pkpAddress.toLowerCase()
-              );
-              console.log(`Filtered transactions for wallet ${pkpAddress}:`, userTransactions);
-            }
-            
-            // Convert transactions to log format
-            const formattedLogs = userTransactions.map((tx: any) => ({
-              timestamp: tx.timestamp || tx.createdAt || new Date().toISOString(),
-              type: tx.status || 'transaction',
-              message: `Transaction: ${tx.tokenSymbol || 'Token'} purchase of ${tx.amount || 'unknown'} for ${tx.fiatAmount || 'unknown'} ${tx.fiatCurrency || 'USD'}`,
-              data: tx
-            }));
-            
-            setLogs(formattedLogs);
-            return true;
-          } else {
-            console.log(`Failed to fetch transactions: ${transactionsResponse.statusText}`);
-            // If both endpoints fail, show empty logs
-            setLogs([]);
-            return true;
-          }
+          console.log(`Failed to fetch transactions: ${transactionsResponse.statusText}`);
+          // If endpoint fails, show empty logs
+          setLogs([]);
+          setTransactions([]);
+          setError(`Failed to fetch transactions: ${transactionsResponse.statusText}`);
+          return false;
         }
       } catch (err) {
         console.error('Error fetching DCA data:', err);
         setError(err instanceof Error ? err.message : 'Unknown error occurred');
         setLogs([]);
+        setTransactions([]);
         return false;
       }
     } catch (err) {
@@ -273,6 +272,30 @@ export default function Dashboard() {
     }
   };
 
+  // Helper function to format timestamp
+  const formatTimestamp = (timestamp: string): string => {
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  // Helper function to format ETH amount
+  const formatEthAmount = (amount: string): string => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return "0.000000 ETH";
+    return `${numAmount.toFixed(6)} ETH`;
+  };
+
+  // Helper function to format USD amount
+  const formatUsdAmount = (amount: string): string => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return "$0.00";
+    return `$${numAmount.toFixed(2)}`;
+  };
+
   const handleApproveAgent = () => {
     // Redirect to Vincent Auth consent page
     window.location.href = "https://vincent-auth.vercel.app/";
@@ -295,26 +318,48 @@ export default function Dashboard() {
     }
   }, [jwtToken]);
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
   return (
     <div className="dashboard-container">
       {jwtVerified ? (
         <>
-          <div className="dashboard-header">
-            <h1>Vincent DCA Dashboard</h1>
-            {walletAddress && (
-              <div className="wallet-info">
-                <p>Connected Wallet: {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}</p>
-              </div>
-            )}
+          <h1>Vincent DCA Dashboard</h1>
+          
+          <div className="actions">
+            <button className="refresh-btn" onClick={fetchLogs}>
+              Refresh Data
+            </button>
           </div>
+          
+          {walletAddress && (
+            <div className="wallet-section">
+              <h2>Wallet Information</h2>
+              <div className="wallet-info">
+                <div className="wallet-address-container">
+                  <span className="wallet-label">Address:</span>
+                  <span className="wallet-address-full">{walletAddress}</span>
+                  <button 
+                    className="copy-btn" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(walletAddress);
+                      alert('Wallet address copied to clipboard!');
+                    }}
+                    title="Copy wallet address"
+                  >
+                    📋
+                  </button>
+                </div>
+                <div className="wallet-network">
+                  <span className="wallet-label">Network:</span>
+                  <span className="network-badge">Base Mainnet</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="status-section">
             <h2>Server Status</h2>
             <div className="actions">
-              <button onClick={() => fetchLogs()} className="refresh-btn" disabled={loading}>
+              <button onClick={fetchLogs} className="refresh-btn" disabled={loading}>
                 Refresh
               </button>
               <a href="/" className="back-btn">
@@ -381,6 +426,82 @@ export default function Dashboard() {
               <div className="no-logs">No logs available</div>
             )}
           </div>
+          
+          <div className="transactions-section">
+            <h2>DCA Transactions for {walletAddress ? 
+              <span className="wallet-address">
+                {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
+                <button 
+                  className="copy-btn" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(walletAddress);
+                    alert('Wallet address copied to clipboard!');
+                  }}
+                  title="Copy wallet address"
+                >
+                  📋
+                </button>
+              </span> 
+              : 'Your Wallet'}
+            </h2>
+            
+            {loading ? (
+              <div className="loading">Loading transactions...</div>
+            ) : error ? (
+              <div className="error">{error}</div>
+            ) : transactions.length > 0 ? (
+              <div className="transactions-list">
+                <div className="transaction-table">
+                  <div className="transaction-header-row">
+                    <div className="transaction-header-cell">Date</div>
+                    <div className="transaction-header-cell">Token</div>
+                    <div className="transaction-header-cell">Amount</div>
+                    <div className="transaction-header-cell">Price</div>
+                    <div className="transaction-header-cell">Status</div>
+                    <div className="transaction-header-cell">Transaction</div>
+                  </div>
+                  {transactions.map((tx, index) => (
+                    <div key={index} className={`transaction-row ${tx.success ? 'success' : 'failed'}`}>
+                      <div className="transaction-cell">
+                        {formatTimestamp(tx.purchasedAt)}
+                      </div>
+                      <div className="transaction-cell">
+                        <strong>{tx.name}</strong> ({tx.symbol})
+                      </div>
+                      <div className="transaction-cell">
+                        {formatEthAmount(tx.purchaseAmount)}
+                      </div>
+                      <div className="transaction-cell">
+                        {formatUsdAmount(tx.price)}
+                      </div>
+                      <div className="transaction-cell status">
+                        <span className={`status-badge ${tx.success ? 'success' : 'failed'}`}>
+                          {tx.success ? 'Success' : 'Failed'}
+                        </span>
+                      </div>
+                      <div className="transaction-cell">
+                        {tx.txHash ? (
+                          <a 
+                            href={`https://basescan.org/tx/${tx.txHash}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="tx-link"
+                          >
+                            View
+                          </a>
+                        ) : 'N/A'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="no-transactions">
+                <p>No DCA transactions found for this wallet address.</p>
+                <p>Create a DCA schedule to start seeing transactions here.</p>
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <div className="auth-required">
@@ -409,7 +530,7 @@ export default function Dashboard() {
           margin-bottom: 20px;
         }
         
-        .status-section, .logs-section {
+        .status-section, .logs-section, .transactions-section {
           background-color: white;
           border-radius: 8px;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -593,7 +714,7 @@ export default function Dashboard() {
           word-break: break-all;
         }
         
-        .loading, .error, .no-logs, .no-status {
+        .loading, .error, .no-logs, .no-status, .no-transactions {
           padding: 20px;
           text-align: center;
           background-color: #f5f5f5;
@@ -625,14 +746,137 @@ export default function Dashboard() {
           margin-top: 20px;
         }
         
-        .dashboard-header {
+        .wallet-section {
+          background-color: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          padding: 20px;
           margin-bottom: 30px;
         }
         
         .wallet-info {
-          margin-top: 10px;
-          font-size: 16px;
-          color: #666;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        .wallet-address-container {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        
+        .wallet-label {
+          font-weight: bold;
+          color: #555;
+          margin-right: 10px;
+          min-width: 80px;
+        }
+        
+        .wallet-address-full {
+          font-family: monospace;
+          background-color: #f5f5f5;
+          padding: 8px 12px;
+          border-radius: 4px;
+          word-break: break-all;
+        }
+        
+        .wallet-network {
+          display: flex;
+          align-items: center;
+        }
+        
+        .network-badge {
+          background-color: #e3f2fd;
+          color: #1565c0;
+          padding: 5px 10px;
+          border-radius: 4px;
+          font-weight: 500;
+        }
+        
+        .wallet-address {
+          display: flex;
+          align-items: center;
+          font-family: monospace;
+        }
+        
+        .copy-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 5px;
+          margin-left: 5px;
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        }
+        
+        .copy-btn:hover {
+          background-color: #f0f0f0;
+        }
+        
+        .transactions-list {
+          max-height: 600px;
+          overflow-y: auto;
+        }
+        
+        .transaction-table {
+          border-collapse: collapse;
+          width: 100%;
+        }
+        
+        .transaction-header-row {
+          background-color: #f5f5f5;
+          border-bottom: 1px solid #ddd;
+        }
+        
+        .transaction-header-cell {
+          padding: 10px;
+          font-weight: bold;
+        }
+        
+        .transaction-row {
+          border-bottom: 1px solid #eee;
+        }
+        
+        .transaction-row.success {
+          background-color: #e8f5e9;
+        }
+        
+        .transaction-row.failed {
+          background-color: #ffebee;
+        }
+        
+        .transaction-cell {
+          padding: 10px;
+          border-right: 1px solid #eee;
+        }
+        
+        .transaction-cell:last-child {
+          border-right: none;
+        }
+        
+        .status-badge {
+          padding: 5px 10px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        .status-badge.success {
+          background-color: #e8f5e9;
+          color: #2e7d32;
+        }
+        
+        .status-badge.failed {
+          background-color: #ffebee;
+          color: #c62828;
+        }
+        
+        .tx-link {
+          color: #2196f3;
+          text-decoration: none;
         }
       `}</style>
     </div>

@@ -1,7 +1,7 @@
 export function ApproveView() {
   const handleApprove = () => {
     // Redirect to Vincent Auth consent page with appId=12 and version=1
-    window.location.href = "https://vincent-auth.vercel.app/?appId=12&version=1";
+    window.location.href = "https://dashboard.heyvincent.ai/consent/?appId=1&version=1";
   };
 
   return (
