@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface RegisterDCAProps {
-  onSubmit: (amount: number, frequency: string) => void;
+  onSubmit: (amount: number, frequency: string, tokenInfo?: any) => void;
   isLoading?: boolean;
 }
 
@@ -20,7 +20,7 @@ export function RegisterDCA({ onSubmit, isLoading = false }: RegisterDCAProps) {
       return;
     }
 
-    onSubmit(parsedAmount, frequency);
+    onSubmit(parsedAmount, frequency, null);
   };
 
   return (
