@@ -1,7 +1,11 @@
 export function ApproveView() {
   const handleApprove = () => {
-    // Redirect to Vincent Auth consent page with appId=12 and version=1
-    window.location.href = "https://dashboard.heyvincent.ai/consent/?appId=1&version=1";
+    // Use the exact redirect URI that's mentioned in the error message
+    // This ensures we're using the format that's already authorized
+    const redirectUri = encodeURIComponent("https://localhost:3001");
+    
+    // Redirect to Vincent Auth consent page with appId=7, version=1, and redirect_uri
+    window.location.href = `https://dashboard.heyvincent.ai/consent/?appId=7&redirectUri=vincent-dca-hl6j.vercel.app`;
   };
 
   return (
